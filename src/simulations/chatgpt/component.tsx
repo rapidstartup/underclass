@@ -1,6 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
+import { OpenAILogo } from "@/components/logos";
 
 interface Props {
   message?: string;
@@ -23,8 +24,8 @@ export function ChatGPT({ message = "", userQuery, timeAgo = "" }: Props) {
       )}
       <div className="p-4">
         <div className="flex gap-3">
-          <div className="w-7 h-7 rounded-full bg-[#10a37f] shrink-0 flex items-center justify-center">
-            <span className="text-white text-xs font-bold">✦</span>
+          <div className="w-8 h-8 rounded-full bg-[#10a37f] shrink-0 flex items-center justify-center">
+            <OpenAILogo className="w-4 h-4 text-white" />
           </div>
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 mb-1">

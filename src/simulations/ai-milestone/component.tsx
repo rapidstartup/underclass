@@ -10,18 +10,22 @@ interface Props {
 export function AiMilestone({ year, headline }: Props) {
   return (
     <motion.div
-      className="my-6 flex items-center gap-3"
+      className="my-6"
       initial={{ opacity: 0, scale: 0.9 }}
       animate={{ opacity: 1, scale: 1 }}
       transition={{ duration: 0.5 }}
     >
-      <div className="h-px flex-1 bg-gradient-to-r from-transparent via-cyan-500/40 to-transparent" />
-      <div className="glass-dark rounded-full px-4 py-2 flex items-center gap-2 shrink-0">
-        <span className="text-cyan-400 text-xs">⚡</span>
-        <span className="text-xs text-cyan-300/80 font-mono">{year || ""}</span>
-        <span className="text-xs text-white/60">{headline || ""}</span>
+      <div className="flex items-center gap-3 mb-2">
+        <div className="h-px flex-1 bg-gradient-to-r from-transparent via-cyan-500/40 to-transparent" />
       </div>
-      <div className="h-px flex-1 bg-gradient-to-r from-transparent via-cyan-500/40 to-transparent" />
+      <div className="glass-dark rounded-xl px-4 py-3 flex items-start gap-2.5 max-w-2xl mx-auto">
+        <span className="text-cyan-400 text-sm shrink-0">⚡</span>
+        <span className="text-sm text-cyan-300/80 font-mono shrink-0">{year || ""}</span>
+        <span className="text-sm text-white/60 leading-snug">{headline || ""}</span>
+      </div>
+      <div className="flex items-center gap-3 mt-2">
+        <div className="h-px flex-1 bg-gradient-to-r from-transparent via-cyan-500/40 to-transparent" />
+      </div>
     </motion.div>
   );
 }

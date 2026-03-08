@@ -6,8 +6,10 @@ import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport } from "ai";
 import { motion, AnimatePresence } from "framer-motion";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
+import { SimulationControls, DEFAULT_SETTINGS, type SimulationSettings } from "@/components/SimulationControls";
 import { ALL_SIMULATIONS } from "@/simulations/registry";
 import type { Simulation } from "@/simulations/types";
+import { playSound, setSoundEnabled } from "@/lib/sounds";
 
 // Build lookup maps from the simulation registry
 const TOOL_MAP = new Map<string, Simulation>(
@@ -21,6 +23,7 @@ function SimulationContent() {
   const [researchStatus, setResearchStatus] = useState("Researching...");
   const [choiceDisabled, setChoiceDisabled] = useState(false);
   const [personName, setPersonName] = useState("");
+  const [settings, setSettings] = useState<SimulationSettings>(DEFAULT_SETTINGS);
   const scrollRef = useRef<HTMLDivElement>(null);
   const hasStartedRef = useRef(false);
   const profileRef = useRef("");
@@ -78,11 +81,17 @@ function SimulationContent() {
     research();
   }, [url, sendMessage]);
 
+  const handleSettings = useCallback((newSettings: SimulationSettings) => {
+    setSettings(newSettings);
+    setSoundEnabled(newSettings.soundEnabled);
+  }, []);
+
   const handleChoice = useCallback(
     (choice: string) => {
       setChoiceDisabled(true);
+      const notes = settings.userNotes ? `\n\nUSER DIRECTION: ${settings.userNotes}` : "";
       sendMessage({
-        text: `I chose: "${choice}". Continue the simulation from where we left off — advance the timeline, show consequences of this choice, then present another choice after 2-3 chapters. Use varied simulation types!\n\nPROFILE DATA:\n${profileRef.current}`,
+        text: `I chose: "${choice}". Continue the simulation from where we left off — advance the timeline, show consequences of this choice, then present another choice after 2-3 chapters. Use varied simulation types!${notes}\n\nPROFILE DATA:\n${profileRef.current}`,
       });
       setTimeout(() => setChoiceDisabled(false), 3000);
 
@@ -96,13 +105,22 @@ function SimulationContent() {
         }
       }, 300);
     },
-    [sendMessage]
+    [sendMessage, settings.userNotes]
   );
+
+  // Track which tools have already played sounds
+  const playedSoundsRef = useRef(new Set<string>());
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const renderTool = useCallback((toolName: string, args: any, key: string) => {
     const sim = TOOL_MAP.get(toolName);
     if (!sim) return null;
+
+    // Play sound once per tool invocation
+    if (!playedSoundsRef.current.has(key)) {
+      playedSoundsRef.current.add(key);
+      playSound(toolName);
+    }
 
     const safeArgs = args || {};
     const Component = sim.component;
@@ -265,6 +283,11 @@ function SimulationContent() {
         </div>
         <div className="h-32" />
       </div>
+
+      {/* Floating controls */}
+      {!isResearching && (
+        <SimulationControls settings={settings} onSettingsChange={handleSettings} />
+      )}
     </main>
   );
 }
