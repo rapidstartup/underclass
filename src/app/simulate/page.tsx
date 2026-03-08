@@ -1,0 +1,284 @@
+"use client";
+
+import { useSearchParams } from "next/navigation";
+import { useEffect, useState, useRef, useCallback, Suspense } from "react";
+import { useChat } from "@ai-sdk/react";
+import { DefaultChatTransport } from "ai";
+import { motion, AnimatePresence } from "framer-motion";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
+import { ALL_SIMULATIONS } from "@/simulations/registry";
+import type { Simulation } from "@/simulations/types";
+
+// Build lookup maps from the simulation registry
+const TOOL_MAP = new Map<string, Simulation>(
+  ALL_SIMULATIONS.map((s) => [s.schema.toolName, s])
+);
+
+function SimulationContent() {
+  const searchParams = useSearchParams();
+  const url = searchParams.get("url") || "";
+  const [isResearching, setIsResearching] = useState(true);
+  const [researchStatus, setResearchStatus] = useState("Researching...");
+  const [choiceDisabled, setChoiceDisabled] = useState(false);
+  const [personName, setPersonName] = useState("");
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const hasStartedRef = useRef(false);
+  const profileRef = useRef("");
+
+  const transportRef = useRef(
+    new DefaultChatTransport({ api: "/api/simulate" })
+  );
+
+  const { messages, sendMessage, status } = useChat({
+    transport: transportRef.current,
+  });
+
+  const isStreaming = status === "streaming" || status === "submitted";
+
+  // Auto-scroll to bottom
+  useEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTo({
+        top: scrollRef.current.scrollHeight,
+        behavior: "smooth",
+      });
+    }
+  }, [messages]);
+
+  // Research the person and start simulation
+  useEffect(() => {
+    if (!url || hasStartedRef.current) return;
+    hasStartedRef.current = true;
+
+    const research = async () => {
+      try {
+        setResearchStatus("Looking up profile...");
+        const res = await fetch("/api/research", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ url }),
+        });
+        const data = await res.json();
+        setPersonName(data.name || "");
+        const profileStr = JSON.stringify(data, null, 2);
+        profileRef.current = profileStr;
+
+        setResearchStatus("Simulating your future...");
+        await new Promise((r) => setTimeout(r, 600));
+        setIsResearching(false);
+
+        sendMessage({
+          text: `Generate the first chapters of my future simulation. Use a variety of simulation types — tweets, iMessages, Slack, LinkedIn, news alerts, AI conversations. Mix it up!\n\nPROFILE DATA:\n${profileStr}`,
+        });
+      } catch {
+        setResearchStatus("Could not research this profile. Try another URL.");
+      }
+    };
+
+    research();
+  }, [url, sendMessage]);
+
+  const handleChoice = useCallback(
+    (choice: string) => {
+      setChoiceDisabled(true);
+      sendMessage({
+        text: `I chose: "${choice}". Continue the simulation from where we left off — advance the timeline, show consequences of this choice, then present another choice after 2-3 chapters. Use varied simulation types!\n\nPROFILE DATA:\n${profileRef.current}`,
+      });
+      setTimeout(() => setChoiceDisabled(false), 3000);
+
+      // Scroll to bottom
+      setTimeout(() => {
+        if (scrollRef.current) {
+          scrollRef.current.scrollTo({
+            top: scrollRef.current.scrollHeight,
+            behavior: "smooth",
+          });
+        }
+      }, 300);
+    },
+    [sendMessage]
+  );
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const renderTool = useCallback((toolName: string, args: any, key: string) => {
+    const sim = TOOL_MAP.get(toolName);
+    if (!sim) return null;
+
+    const safeArgs = args || {};
+    const Component = sim.component;
+
+    // Inject onChoice + disabled for the choice component
+    const extraProps = toolName === "showChoice"
+      ? { onChoice: handleChoice, disabled: choiceDisabled || isStreaming }
+      : {};
+
+    // Inject personName fallback for chapters
+    if (toolName === "showChapter" && !safeArgs.personName) {
+      safeArgs.personName = personName;
+    }
+
+    const layoutClass =
+      sim.layout === "inline-right" ? "flex justify-end mb-4" :
+      sim.layout === "inline-left" ? "mb-2" :
+      sim.layout === "inline-center" ? "" :
+      sim.layout === "fullscreen" ? "w-full mb-6" :
+      "mb-4";
+
+    return (
+      <ErrorBoundary key={key}>
+        <div className={layoutClass}>
+          <Component {...safeArgs} {...extraProps} />
+        </div>
+      </ErrorBoundary>
+    );
+  }, [handleChoice, choiceDisabled, isStreaming, personName]);
+
+  // Extract tool name from part type
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const getToolInfo = (part: any): { toolName: string; args: any } | null => {
+    if (part.state === "input-streaming") return null;
+
+    if (part.type === "dynamic-tool" && part.toolName) {
+      return { toolName: part.toolName, args: part.input || {} };
+    }
+    if (typeof part.type === "string" && part.type.startsWith("tool-")) {
+      const toolName = part.type.slice(5);
+      return { toolName, args: part.input || {} };
+    }
+    if (part.type === "tool-invocation" && part.toolInvocation) {
+      return { toolName: part.toolInvocation.toolName, args: part.toolInvocation.args || part.toolInvocation.input || {} };
+    }
+    return null;
+  };
+
+  return (
+    <main className="relative min-h-screen">
+      <div
+        className="fixed inset-0 bg-cover bg-center bg-no-repeat"
+        style={{ backgroundImage: "url(/hero-bg.jpg)" }}
+      />
+      <div className="fixed inset-0 bg-gradient-to-b from-black/50 via-black/30 to-black/70" />
+
+      <div ref={scrollRef} className="relative z-10 min-h-screen overflow-y-auto">
+        <div className="max-w-4xl mx-auto px-6 py-12">
+          <AnimatePresence>
+            {isResearching && (
+              <motion.div
+                className="flex flex-col items-center justify-center min-h-[60vh]"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+              >
+                <div className="relative mb-6">
+                  <div className="w-16 h-16 border-2 border-white/10 rounded-full" />
+                  <div className="absolute inset-0 w-16 h-16 border-2 border-t-cyan-400/60 rounded-full animate-spin" />
+                </div>
+                <p className="text-white/60 text-lg">{researchStatus}</p>
+                <p className="text-white/30 text-sm mt-2 max-w-md text-center">
+                  Analyzing career trajectory and modeling AI disruption
+                  scenarios...
+                </p>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {!isResearching && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.5 }}
+            >
+              {(() => {
+                const elements: React.ReactNode[] = [];
+                let lastChoiceIndex = -1;
+                let globalIndex = 0;
+
+                // First pass: find the last showChoice
+                messages.forEach((message) => {
+                  if (message.role !== "assistant") return;
+                  (message.parts || []).forEach((part) => {
+                    const toolInfo = getToolInfo(part);
+                    if (toolInfo?.toolName === "showChoice") {
+                      lastChoiceIndex = globalIndex;
+                    }
+                    globalIndex++;
+                  });
+                });
+
+                // Second pass: render everything
+                let idx = 0;
+                messages.forEach((message, messageIndex) => {
+                  if (message.role !== "assistant") return;
+                  (message.parts || []).forEach((part, partIndex) => {
+                    const currentIdx = idx++;
+                    const toolInfo = getToolInfo(part);
+                    if (toolInfo) {
+                      // Only render the last choice (skip earlier duplicates)
+                      if (toolInfo.toolName === "showChoice" && currentIdx !== lastChoiceIndex) {
+                        return;
+                      }
+                      const el = renderTool(
+                        toolInfo.toolName,
+                        toolInfo.args,
+                        `tool-${messageIndex}-${partIndex}`
+                      );
+                      if (el) elements.push(el);
+                      return;
+                    }
+                    if (part.type === "text") {
+                      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                      const text = (part as any).text;
+                      if (!text || text.trim().length === 0) return;
+                      elements.push(
+                        <motion.p
+                          key={`text-${messageIndex}-${partIndex}`}
+                          className="text-white/70 text-base leading-relaxed mb-4"
+                          initial={{ opacity: 0 }}
+                          animate={{ opacity: 1 }}
+                        >
+                          {text}
+                        </motion.p>
+                      );
+                    }
+                  });
+                });
+
+                return <div className="space-y-2">{elements}</div>;
+              })()}
+
+              {isStreaming && (
+                <motion.div
+                  className="flex items-center gap-2 mt-6 mb-4"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                >
+                  <div className="flex gap-1">
+                    <div className="w-1.5 h-1.5 bg-cyan-400/40 rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />
+                    <div className="w-1.5 h-1.5 bg-cyan-400/40 rounded-full animate-bounce" style={{ animationDelay: "150ms" }} />
+                    <div className="w-1.5 h-1.5 bg-cyan-400/40 rounded-full animate-bounce" style={{ animationDelay: "300ms" }} />
+                  </div>
+                  <span className="text-white/30 text-sm">simulating...</span>
+                </motion.div>
+              )}
+            </motion.div>
+          )}
+        </div>
+        <div className="h-32" />
+      </div>
+    </main>
+  );
+}
+
+export default function SimulatePage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen flex items-center justify-center bg-[#0a0e1a]">
+          <div className="w-8 h-8 border-2 border-t-cyan-400/60 border-white/10 rounded-full animate-spin" />
+        </div>
+      }
+    >
+      <SimulationContent />
+    </Suspense>
+  );
+}
