@@ -140,6 +140,12 @@ function SimulationContent() {
 
   const handleChoice = useCallback(
     (choice: string) => {
+      console.log("[handleChoice] clicked:", choice, "status:", status, "choiceDisabled:", choiceDisabled);
+      if (choiceDisabled) return;
+      if (status !== "ready") {
+        console.log("[handleChoice] blocked — status is:", status);
+        return;
+      }
       setChoiceDisabled(true);
       const notes = settings.userNotes ? `\n\nUSER DIRECTION: ${settings.userNotes}` : "";
       if (settings.userNotes) {
@@ -148,7 +154,7 @@ function SimulationContent() {
       sendMessage({
         text: `I chose: "${choice}". Continue the simulation from where we left off — advance the timeline, show consequences of this choice, then present another choice after 2-3 chapters. Use varied simulation types!${notes}\n\nPROFILE DATA:\n${profileRef.current}`,
       });
-      setTimeout(() => setChoiceDisabled(false), 3000);
+      setTimeout(() => setChoiceDisabled(false), 5000);
 
       // Scroll to bottom
       setTimeout(() => {
@@ -160,7 +166,7 @@ function SimulationContent() {
         }
       }, 300);
     },
-    [sendMessage, settings.userNotes]
+    [sendMessage, settings.userNotes, status, choiceDisabled]
   );
 
   // Auto-continue: when streaming finishes, either auto-pick a choice or continue
@@ -233,8 +239,9 @@ function SimulationContent() {
     }
 
     // Inject onChoice + disabled for the choice component
+    // Don't disable during streaming — only after user clicks
     const extraProps = toolName === "showChoice"
-      ? { onChoice: handleChoice, disabled: choiceDisabled || isStreaming }
+      ? { onChoice: handleChoice, disabled: choiceDisabled }
       : {};
 
     // Inject personName fallback for chapters

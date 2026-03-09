@@ -98,10 +98,10 @@ export async function POST(req: Request) {
     model: anthropic("claude-sonnet-4-20250514"),
     system: systemPrompt,
     messages: modelMessages,
-    toolChoice: "required",
+    toolChoice: "auto",
     tools: aiTools,
     maxOutputTokens: 16000,
-    stopWhen: stepCountIs(80),
+    stopWhen: stepCountIs(30),
   });
 
   return result.toUIMessageStreamResponse();
