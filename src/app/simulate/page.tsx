@@ -102,6 +102,10 @@ function SimulationContent() {
     }
   }, [messages]);
 
+  // Ref for sendMessage to avoid dependency issues
+  const sendMessageRef = useRef(sendMessage);
+  sendMessageRef.current = sendMessage;
+
   // Start simulation with a researched profile
   const startSimulation = useCallback((data: { name?: string; profileImageUrl?: string }) => {
     setPersonName(data.name || "");
@@ -118,14 +122,15 @@ function SimulationContent() {
     const profileStr = JSON.stringify(data, null, 2);
     profileRef.current = profileStr;
 
+    setIsResearching(true);
     setResearchStatus("Simulating your future...");
     setTimeout(() => {
       setIsResearching(false);
-      sendMessage({
+      sendMessageRef.current({
         text: `Generate the first chapters of my future simulation. Use a variety of simulation types — tweets, iMessages, Slack, LinkedIn, news alerts, AI conversations. Mix it up!\n\nPROFILE DATA:\n${profileStr}`,
       });
     }, 600);
-  }, [url, handle, sendMessage]);
+  }, [url, handle]);
 
   // Pick a candidate from disambiguation
   const handlePickCandidate = useCallback(async (candidate: { name: string; linkedinUrl: string }) => {
@@ -192,6 +197,7 @@ function SimulationContent() {
         const uniqueNames = new Set(foundCandidates.map((c: { name: string }) => c.name.toLowerCase()));
         if (foundCandidates.length > 1 && uniqueNames.size > 1) {
           clearInterval(msgInterval);
+          setIsResearching(false);
           setCandidates(foundCandidates.slice(0, 3));
           return; // Wait for user to pick
         }
@@ -212,7 +218,8 @@ function SimulationContent() {
     };
 
     research();
-  }, [url, handle, sendMessage, startSimulation]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [url, handle]);
 
   const handleShare = useCallback(async () => {
     if (isSaving || shareUrl) return;
