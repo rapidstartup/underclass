@@ -317,7 +317,7 @@ export async function researchPerson(linkedinUrl: string): Promise<PersonProfile
     query: `${nameFromUrl} ${cleanUrl}`,
     category: "people",
     type: "auto",
-    numResults: 3,
+    numResults: 10,
     contents: { text: { maxCharacters: 2000 } },
   });
 

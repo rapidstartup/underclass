@@ -37,6 +37,7 @@ RULES:
 - Show how AI specifically disrupts THEIR field — be concrete with real tools, companies, papers
 - Reference REAL arXiv papers, blog posts, company announcements (extrapolated realistically from current trends)
 - Name specific models, tools, companies — "Claude 7 Opus" not just "an AI system"
+- ONLY use information from the PROFILE DATA provided. If location is empty/missing, DO NOT invent one — just skip location references. Never hallucinate details not in the profile data.
 - Don't just tell — SHOW via notifications, posts, news alerts
 - Include both terrifying and exciting possibilities
 - Make it deeply personal: existential questions, relationships strained by change, identity crises
