@@ -489,19 +489,74 @@ export async function findPersonByHandle(handle: string): Promise<PersonProfile>
       `Who is @${xHandle} on X/Twitter? What is their full name, current role/company, and LinkedIn profile URL?`
     );
     
+    // Extract the person's name and company from the answer
+    // Match full names including patterns like "McCurrach", "O'Brien", multi-word
+    const nameMatch = answer.match(/(?:is\s+|name is\s+)([A-Z][a-z]+ (?:[A-Z](?:[a-z']+|[a-z]*[A-Z][a-z]+) ?){1,3})/);
+    const personName = nameMatch?.[1] || "";
+    const companyMatch = answer.match(/(?:CEO|founder|co-founder|CTO|COO)(?:\s+(?:of|at)\s+)([A-Za-z][A-Za-z\s]+?)(?:\s*[\.,;\(\[]|$)/i);
+    const companyName = companyMatch?.[1]?.trim() || "";
+    
+    console.log(`[exa] Exa Answer identified: ${personName} (${companyName})`);
+
     // Extract LinkedIn URL from the answer
     const linkedinMatch = answer.match(/linkedin\.com\/in\/([a-zA-Z0-9_-]+)/);
+    
     if (linkedinMatch) {
       const linkedinUrl = `https://www.linkedin.com/in/${linkedinMatch[1]}`;
-      console.log(`[exa] Found LinkedIn via Exa Answer: ${linkedinUrl}`);
-      return researchPerson(linkedinUrl);
+      
+      // VERIFY the LinkedIn profile matches — Exa Answer can hallucinate URLs
+      const verification = await exaGetContents(apiKey, [linkedinUrl]);
+      const verifiedTitle = verification[0]?.title || "";
+      const verifiedText = verification[0]?.text || "";
+      
+      // Check if the LinkedIn profile matches the person/company from the answer
+      const nameWords = personName.toLowerCase().split(" ");
+      const titleLower = verifiedTitle.toLowerCase();
+      const textLower = verifiedText.toLowerCase().slice(0, 500);
+      const nameMatches = nameWords.some(w => w.length > 2 && titleLower.includes(w));
+      const companyMatches = companyName && (titleLower.includes(companyName.toLowerCase()) || textLower.includes(companyName.toLowerCase()));
+      
+      if (nameMatches || companyMatches) {
+        console.log(`[exa] LinkedIn verified: ${verifiedTitle}`);
+        return researchPerson(linkedinUrl);
+      } else {
+        console.log(`[exa] LinkedIn MISMATCH: "${verifiedTitle}" doesn't match "${personName} / ${companyName}", searching by name instead`);
+      }
     }
     
-    // Extract name from answer and search by name instead
-    const nameMatch = answer.match(/(?:full name is|is\s+)([A-Z][a-z]+ [A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)/);
-    if (nameMatch) {
-      console.log(`[exa] Found name via Exa Answer: ${nameMatch[1]}, searching LinkedIn`);
-      return findPersonByHandle(nameMatch[1]);
+    // LinkedIn URL missing or wrong — search by name + company
+    if (personName) {
+      const searchQuery = companyName ? `${personName} ${companyName}` : personName;
+      console.log(`[exa] Searching LinkedIn by name: ${searchQuery}`);
+      
+      // Search for LinkedIn profile with name + company for accuracy
+      const nameResults = await exaSearch(apiKey, {
+        query: `${searchQuery} site:linkedin.com/in/`,
+        type: "auto",
+        numResults: 5,
+        contents: { text: { maxCharacters: 500 } },
+      });
+      
+      const linkedinResult = nameResults.find((r) => r.url?.includes("linkedin.com/in/"));
+      if (linkedinResult?.url) {
+        console.log(`[exa] Found LinkedIn via name search: ${linkedinResult.url}`);
+        return researchPerson(linkedinResult.url);
+      }
+      
+      // Try people category
+      const peopleResults = await exaSearch(apiKey, {
+        query: searchQuery,
+        category: "people",
+        type: "auto",
+        numResults: 3,
+        contents: { text: { maxCharacters: 2000 } },
+      });
+      
+      const peopleLi = peopleResults.find((r) => r.url?.includes("linkedin.com/in/"));
+      if (peopleLi?.url) {
+        console.log(`[exa] Found LinkedIn via people search: ${peopleLi.url}`);
+        return researchPerson(peopleLi.url);
+      }
     }
   }
 
