@@ -106,6 +106,31 @@ export async function POST(req: Request) {
     }
   }
 
+  // Trim old assistant tool calls to reduce conversation history size
+  // Keep only the last 6 messages fully intact; older ones get tool args truncated
+  const KEEP_FULL = 6;
+  if (modelMessages.length > KEEP_FULL) {
+    const trimBefore = modelMessages.length - KEEP_FULL;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    for (let i = 0; i < trimBefore; i++) {
+      const msg = modelMessages[i] as any;
+      if (msg.role === "assistant" && Array.isArray(msg.content)) {
+        for (let j = 0; j < msg.content.length; j++) {
+          const part = msg.content[j];
+          // Truncate tool call args (the big text blobs)
+          if (part.type === "tool-call" && part.args) {
+            const toolName = part.toolName || "";
+            // Keep choice args (small, important for context), truncate narrative tools
+            if (toolName !== "showChoice" && toolName !== "showPULUpdate" && toolName !== "showGameOver") {
+              const summary = part.args.title || part.args.headline || part.args.subject || toolName;
+              part.args = { _summary: `[${toolName}: ${summary}]` };
+            }
+          }
+        }
+      }
+    }
+  }
+
   // Build tools dynamically from simulation registry
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const aiTools: Record<string, any> = {};
@@ -136,8 +161,8 @@ export async function POST(req: Request) {
     messages: modelMessages,
     toolChoice: "auto",
     tools: aiTools,
-    maxOutputTokens: 16000,
-    stopWhen: stepCountIs(30),
+    maxOutputTokens: 8000,
+    stopWhen: stepCountIs(20),
     experimental_telemetry: {
       isEnabled: true,
       functionId: "simulate",
