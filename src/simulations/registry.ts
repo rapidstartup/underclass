@@ -6,6 +6,7 @@ import { simulation as chapter } from "./chapter";
 import { simulation as aiMilestone } from "./ai-milestone";
 import { simulation as choice } from "./choice";
 import { simulation as pulUpdate } from "./pul-update";
+import { simulation as gameOver } from "./game-over";
 
 // ── Social ──────────────────────────────────────────────────
 import { simulation as twitterPost } from "./twitter-post";
@@ -38,6 +39,7 @@ export const ALL_SIMULATIONS: Simulation[] = [
   aiMilestone,
   choice,
   pulUpdate,
+  gameOver,
 
   // Social
   twitterPost,

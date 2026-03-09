@@ -170,8 +170,20 @@ function SimulationContent() {
       if (settings.userNotes) {
         setAppliedNotes((prev) => [...prev, settings.userNotes]);
       }
+      // Count chapters so far
+      let chapterCount = 0;
+      messages.forEach((m) => {
+        if (m.role !== "assistant") return;
+        (m.parts || []).forEach((p) => {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const tn = (p as any).toolName || (typeof (p as any).type === "string" && (p as any).type.startsWith("tool-show") ? (p as any).type.slice(5) : null);
+          if (tn === "showChapter") chapterCount++;
+        });
+      });
+
+      const endHint = chapterCount >= 9 ? "\n\nIMPORTANT: This is chapter ~" + (chapterCount + 1) + "+. END the game with showGameOver after 1-2 more chapters." : "";
       sendMessage({
-        text: `I chose: "${choice}". Continue the simulation from where we left off — advance the timeline, show consequences of this choice, then present another choice after 2-3 chapters. Use varied simulation types!${notes}\n\nPROFILE DATA:\n${profileRef.current}`,
+        text: `I chose: "${choice}". Continue the simulation from where we left off — advance the timeline, show consequences of this choice, then present another choice after 2-3 chapters. Use varied simulation types!${endHint}${notes}\n\nPROFILE DATA:\n${profileRef.current}`,
       });
       setTimeout(() => setChoiceDisabled(false), 5000);
 
@@ -269,8 +281,11 @@ function SimulationContent() {
         }
       : {};
 
-    // Inject personName fallback for chapters
+    // Inject personName fallback
     if (toolName === "showChapter" && !safeArgs.personName) {
+      safeArgs.personName = personName;
+    }
+    if (toolName === "showGameOver" && !safeArgs.personName) {
       safeArgs.personName = personName;
     }
 

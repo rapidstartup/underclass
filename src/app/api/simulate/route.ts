@@ -59,7 +59,14 @@ After 2-3 chapters: showChoice — the player decides their fate.
 - ALWAYS call showPULUpdate after each showChapter. Start PUL at 45% for most professionals. Be aggressive with swings.
 - You MUST end EVERY response with exactly one showChoice call. This is NON-NEGOTIABLE. The user cannot continue without a choice.
 - Pattern: showChapter → showPULUpdate → 1-2 notifications → showChapter → showPULUpdate → 1-2 notifications → showChoice
-- Keep each response to 2-3 chapters MAX, then showChoice. Do NOT generate more than 3 chapters before a choice.`;
+- Keep each response to 2-3 chapters MAX, then showChoice. Do NOT generate more than 3 chapters before a choice.
+
+GAME ENDING:
+- The game lasts 10-12 total chapters (across multiple responses). Track chapter count.
+- When the user has seen ~10-12 chapters, call showGameOver INSTEAD of showChoice to end the game.
+- Also end early if PUL reaches extreme values: below 15% (clear elite) or above 85% (clear underclass).
+- The ending should feel earned — reference specific choices and events from the simulation.
+- After showGameOver, do NOT call any more tools. The game is over.`;
 
 export async function POST(req: Request) {
   const { messages: uiMessages } = await req.json();
