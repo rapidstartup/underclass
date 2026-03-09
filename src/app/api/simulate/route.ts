@@ -110,6 +110,10 @@ export async function POST(req: Request) {
   const useBasicModel = clientModel === "basic" || url.searchParams.get("model") === "basic";
   const modelId = useBasicModel ? "claude-haiku-4-5-20251001" : "claude-sonnet-4-20250514";
 
+  // Extract person name from profile data for Langfuse trace
+  const personMatch = profileData.match(/Name:\s*(.+?)(?:\n|$)/i) || profileData.match(/^(.+?)(?:\s*[-|]|\n)/);
+  const traceName = personMatch ? personMatch[1].trim().slice(0, 50) : "unknown";
+
   const result = streamText({
     model: anthropic(modelId),
     system: systemPrompt,
@@ -118,6 +122,15 @@ export async function POST(req: Request) {
     tools: aiTools,
     maxOutputTokens: 16000,
     stopWhen: stepCountIs(30),
+    experimental_telemetry: {
+      isEnabled: true,
+      functionId: "simulate",
+      metadata: {
+        model: modelId,
+        person: traceName,
+        isBasicModel: String(useBasicModel),
+      },
+    },
   });
 
   return result.toUIMessageStreamResponse();
