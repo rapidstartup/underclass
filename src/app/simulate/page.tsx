@@ -238,20 +238,105 @@ function SimulationContent() {
           <AnimatePresence>
             {isResearching && (
               <motion.div
-                className="flex flex-col items-center justify-center min-h-[60vh]"
+                className="flex flex-col items-center justify-center min-h-[80vh] gap-8"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
+                exit={{ opacity: 0, y: -30 }}
+                transition={{ duration: 0.5 }}
               >
-                <div className="relative mb-6">
-                  <div className="w-16 h-16 border-2 border-white/10 rounded-full" />
-                  <div className="absolute inset-0 w-16 h-16 border-2 border-t-cyan-400/60 rounded-full animate-spin" />
+                {/* Animated scanner ring */}
+                <div className="relative w-24 h-24">
+                  <motion.div
+                    className="absolute inset-0 rounded-full border border-cyan-400/20"
+                    animate={{ scale: [1, 1.5, 1], opacity: [0.3, 0, 0.3] }}
+                    transition={{ duration: 2, repeat: Infinity, ease: "easeOut" }}
+                  />
+                  <motion.div
+                    className="absolute inset-2 rounded-full border border-cyan-400/30"
+                    animate={{ scale: [1, 1.3, 1], opacity: [0.5, 0, 0.5] }}
+                    transition={{ duration: 2, repeat: Infinity, ease: "easeOut", delay: 0.3 }}
+                  />
+                  <div className="absolute inset-4 rounded-full border-2 border-white/10" />
+                  <motion.div
+                    className="absolute inset-4 rounded-full border-2 border-t-cyan-400/70 border-r-transparent border-b-transparent border-l-transparent"
+                    animate={{ rotate: 360 }}
+                    transition={{ duration: 1.5, repeat: Infinity, ease: "linear" }}
+                  />
+                  {/* Center dot */}
+                  <motion.div
+                    className="absolute inset-0 flex items-center justify-center"
+                    animate={{ opacity: [0.5, 1, 0.5] }}
+                    transition={{ duration: 1.5, repeat: Infinity }}
+                  >
+                    <div className="w-2 h-2 rounded-full bg-cyan-400/60" />
+                  </motion.div>
                 </div>
-                <p className="text-white/60 text-lg">{researchStatus}</p>
-                <p className="text-white/30 text-sm mt-2 max-w-md text-center">
-                  Analyzing career trajectory and modeling AI disruption
-                  scenarios...
-                </p>
+
+                {/* Status text with shimmer */}
+                <div className="text-center">
+                  <Shimmer as="p" className="text-lg font-medium mb-2" duration={2.5}>
+                    {researchStatus}
+                  </Shimmer>
+                  <p className="text-white/25 text-sm max-w-sm mx-auto">
+                    Analyzing career trajectory and modeling AI disruption scenarios
+                  </p>
+                </div>
+
+                {/* Animated skeleton cards */}
+                <div className="w-full max-w-md space-y-3 mt-4">
+                  {[0, 1, 2].map((i) => (
+                    <motion.div
+                      key={i}
+                      className="rounded-xl overflow-hidden"
+                      initial={{ opacity: 0, x: i % 2 === 0 ? -30 : 30 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: 0.8 + i * 0.4, duration: 0.5 }}
+                    >
+                      <div className={`h-16 rounded-xl bg-white/[0.03] border border-white/5 px-4 py-3 ${i % 2 === 0 ? "ml-0 mr-auto max-w-[85%]" : "ml-auto mr-0 max-w-[70%]"}`}>
+                        <motion.div
+                          className="h-2.5 rounded-full bg-white/[0.06] mb-2"
+                          style={{ width: `${60 + i * 15}%` }}
+                          animate={{ opacity: [0.3, 0.6, 0.3] }}
+                          transition={{ duration: 1.5, repeat: Infinity, delay: i * 0.2 }}
+                        />
+                        <motion.div
+                          className="h-2 rounded-full bg-white/[0.04]"
+                          style={{ width: `${40 + i * 10}%` }}
+                          animate={{ opacity: [0.2, 0.4, 0.2] }}
+                          transition={{ duration: 1.5, repeat: Infinity, delay: i * 0.2 + 0.3 }}
+                        />
+                      </div>
+                    </motion.div>
+                  ))}
+
+                  {/* Skeleton PUL bar */}
+                  <motion.div
+                    className="rounded-xl bg-white/[0.03] border border-white/5 px-4 py-3 mt-4"
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 2, duration: 0.5 }}
+                  >
+                    <div className="flex items-center justify-between mb-2">
+                      <motion.div
+                        className="h-2 w-32 rounded-full bg-white/[0.06]"
+                        animate={{ opacity: [0.3, 0.5, 0.3] }}
+                        transition={{ duration: 1.5, repeat: Infinity }}
+                      />
+                      <motion.div
+                        className="h-5 w-10 rounded bg-white/[0.06]"
+                        animate={{ opacity: [0.3, 0.5, 0.3] }}
+                        transition={{ duration: 1.5, repeat: Infinity, delay: 0.2 }}
+                      />
+                    </div>
+                    <div className="h-2 rounded-full bg-white/[0.04] overflow-hidden">
+                      <motion.div
+                        className="h-full rounded-full bg-cyan-400/10"
+                        animate={{ width: ["0%", "45%", "30%", "50%"] }}
+                        transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
+                      />
+                    </div>
+                  </motion.div>
+                </div>
               </motion.div>
             )}
           </AnimatePresence>

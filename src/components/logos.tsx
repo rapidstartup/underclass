@@ -15,8 +15,8 @@ export function OpenAILogo({ className = "w-5 h-5" }: LogoProps) {
 
 export function AnthropicLogo({ className = "w-5 h-5" }: LogoProps) {
   return (
-    <svg className={className} viewBox="0 0 46 32" fill="currentColor">
-      <path d="M32.73 0H26.l-13.27 32h6.73L32.73 0ZM13.27 0H6.54L0 15.28h6.73L13.27 0ZM19.46 19.72 16.13 28h6.73l3.33-8.28h-6.73Z" />
+    <svg className={className} viewBox="0 0 24 24" fill="currentColor">
+      <path d="M17.3041 3.541h-3.6718l6.696 16.918H24Zm-10.6082 0L0 20.459h3.7442l1.3693-3.5527h7.0052l1.3693 3.5528h3.7442L10.5363 3.5409Zm-.3712 10.2232 2.2914-5.9456 2.2914 5.9456Z" />
     </svg>
   );
 }
