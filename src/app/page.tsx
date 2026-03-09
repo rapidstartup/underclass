@@ -86,11 +86,14 @@ export default function Home() {
 
     setIsLoading(true);
 
-    // If it looks like a LinkedIn URL, use it directly
     if (input.includes("linkedin.com/in/")) {
+      // Direct LinkedIn URL
       router.push(`/simulate?url=${encodeURIComponent(input)}`);
+    } else if (input.includes("x.com/") || input.includes("twitter.com/")) {
+      // X/Twitter URL — extract handle, search via Exa Answer
+      router.push(`/simulate?handle=${encodeURIComponent(input)}`);
     } else {
-      // Treat as a name/handle — search via Exa
+      // Name or handle — search via Exa
       router.push(`/simulate?handle=${encodeURIComponent(input)}`);
     }
   };
@@ -138,7 +141,7 @@ export default function Home() {
               type="text"
               value={url}
               onChange={(e) => setUrl(e.target.value)}
-              placeholder="paste linkedin url or name"
+              placeholder="paste linkedin url, x.com profile, or name"
               className="flex-1 bg-transparent text-white text-sm outline-none placeholder:text-white/30 py-3"
               autoFocus
             />

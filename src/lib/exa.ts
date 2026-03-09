@@ -477,6 +477,34 @@ export async function findPersonByHandle(handle: string): Promise<PersonProfile>
   const apiKey = process.env.EXA_API_KEY;
   if (!apiKey) throw new Error("EXA_API_KEY not set");
 
+  // Detect X/Twitter handle or URL → use Exa Answer to find their LinkedIn
+  const xHandleMatch = handle.match(/(?:x\.com|twitter\.com)\/([^/?]+)/) || 
+    (handle.startsWith("@") ? [null, handle.slice(1)] : null);
+  
+  if (xHandleMatch) {
+    const xHandle = xHandleMatch[1];
+    console.log(`[exa] Detected X handle: @${xHandle}, using Exa Answer to find LinkedIn`);
+    
+    const answer = await exaAnswer(apiKey, 
+      `Who is @${xHandle} on X/Twitter? What is their full name, current role/company, and LinkedIn profile URL?`
+    );
+    
+    // Extract LinkedIn URL from the answer
+    const linkedinMatch = answer.match(/linkedin\.com\/in\/([a-zA-Z0-9_-]+)/);
+    if (linkedinMatch) {
+      const linkedinUrl = `https://www.linkedin.com/in/${linkedinMatch[1]}`;
+      console.log(`[exa] Found LinkedIn via Exa Answer: ${linkedinUrl}`);
+      return researchPerson(linkedinUrl);
+    }
+    
+    // Extract name from answer and search by name instead
+    const nameMatch = answer.match(/(?:full name is|is\s+)([A-Z][a-z]+ [A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)/);
+    if (nameMatch) {
+      console.log(`[exa] Found name via Exa Answer: ${nameMatch[1]}, searching LinkedIn`);
+      return findPersonByHandle(nameMatch[1]);
+    }
+  }
+
   // Clean up the handle — could be "shaiunterslak", "shai-unterslak", "Shai Unterslak"
   const searchName = handle
     .replace(/[-_]/g, " ")
