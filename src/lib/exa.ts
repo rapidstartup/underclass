@@ -188,13 +188,28 @@ export async function researchPerson(linkedinUrl: string): Promise<PersonProfile
   const sources: string[] = [];
 
   // ── Step 0: Direct URL fetch via getContents — most accurate ──────────
-  const directResults = await exaGetContents(apiKey, [cleanUrl]);
+  let directResults: ExaResult[] = [];
+  try {
+    directResults = await exaGetContents(apiKey, [cleanUrl]);
+  } catch (e) {
+    console.error("[exa] getContents failed:", e);
+  }
   const directProfile = directResults[0];
   if (directProfile?.text) {
     // Parse the direct profile text for name, headline, etc.
-    const lines = directProfile.text.split("\n").filter(Boolean);
-    const titleMatch = directProfile.title?.match(/^([^|]+)/);
-    if (titleMatch) resolvedName = titleMatch[1].trim();
+    // Title format: "Sky Yang - Stealth AI Startup | LinkedIn" or "Sky Yang | LinkedIn"
+    const titleMatch = directProfile.title?.match(/^([^|–-]+?)(?:\s*[-|–])/);
+    if (titleMatch) {
+      resolvedName = titleMatch[1].trim();
+    } else if (directProfile.title) {
+      resolvedName = directProfile.title.replace(/\s*\|.*$/, "").trim();
+    }
+    
+    // Also try extracting name from the markdown heading (# Name)
+    const h1Match = directProfile.text.match(/^#\s+(.+?)$/m);
+    if (h1Match && h1Match[1].trim().length < 50) {
+      resolvedName = h1Match[1].trim();
+    }
 
     // Try to extract headline from title or first lines
     if (directProfile.title) headline = directProfile.title;
