@@ -1,18 +1,13 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
   <defs>
-    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#0a0e1a"/>
-      <stop offset="100%" stop-color="#111827"/>
-    </linearGradient>
-    <linearGradient id="accent" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#22d3ee"/>
-      <stop offset="100%" stop-color="#a78bfa"/>
+    <linearGradient id="g" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#facc15"/>
+      <stop offset="100%" stop-color="#ef4444"/>
     </linearGradient>
   </defs>
-  <rect width="512" height="512" rx="108" fill="url(#bg)"/>
-  <!-- Arrow/forward symbol made of two chevrons -->
-  <g fill="none" stroke="url(#accent)" stroke-width="48" stroke-linecap="round" stroke-linejoin="round">
-    <polyline points="160,160 296,256 160,352"/>
-    <polyline points="256,160 392,256 256,352" opacity="0.5"/>
-  </g>
+  <rect width="512" height="512" rx="108" fill="#0a0e1a"/>
+  <!-- Bold "U" letterform -->
+  <path d="M148 90 L148 295 C148 388 195 432 256 432 C317 432 364 388 364 295 L364 90 L308 90 L308 291 C308 342 288 370 256 370 C224 370 204 342 204 291 L204 90 Z" fill="white"/>
+  <!-- PUL gradient bar — prominent -->
+  <rect x="108" y="448" width="296" height="22" rx="11" fill="url(#g)"/>
 </svg>
