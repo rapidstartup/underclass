@@ -26,6 +26,7 @@ function SimulationContent() {
   const [researchStatus, setResearchStatus] = useState("Researching...");
   const [choiceDisabled, setChoiceDisabled] = useState(false);
   const [personName, setPersonName] = useState("");
+  const [profileImage, setProfileImage] = useState("");
   const [settings, setSettings] = useState<SimulationSettings>(DEFAULT_SETTINGS);
   const [shareUrl, setShareUrl] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
@@ -135,6 +136,7 @@ function SimulationContent() {
         const data = await res.json();
         clearInterval(msgInterval);
         setPersonName(data.name || "");
+        setProfileImage(data.profileImageUrl || "");
         const profileStr = JSON.stringify(data, null, 2);
         profileRef.current = profileStr;
 
@@ -458,6 +460,31 @@ function SimulationContent() {
               animate={{ opacity: 1 }}
               transition={{ duration: 0.5 }}
             >
+              {/* Profile header */}
+              {personName && (
+                <motion.div
+                  className="flex items-center gap-3 mb-8 pb-4 border-b border-white/5"
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                >
+                  {profileImage ? (
+                    <img
+                      src={profileImage}
+                      alt={personName}
+                      className="w-10 h-10 rounded-full object-cover border border-white/10"
+                    />
+                  ) : (
+                    <div className="w-10 h-10 rounded-full bg-white/10 border border-white/5 flex items-center justify-center text-white/40 text-sm font-bold">
+                      {personName.charAt(0)}
+                    </div>
+                  )}
+                  <div>
+                    <p className="text-sm font-medium text-white/70">{personName}</p>
+                    <p className="text-[11px] text-white/30">AI future simulation</p>
+                  </div>
+                </motion.div>
+              )}
+
               {(() => {
                 const elements: React.ReactNode[] = [];
                 let lastChoiceIndex = -1;

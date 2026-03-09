@@ -25,6 +25,7 @@ export interface PersonProfile {
   headline: string;
   location: string;
   summary: string;
+  profileImageUrl: string;
   workHistory: WorkHistoryEntry[];
   education: EducationEntry[];
   companies: CompanyInfo[];
@@ -34,7 +35,7 @@ export interface PersonProfile {
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-type ExaResult = { url?: string; title?: string; text?: string; summary?: string; entities?: any[] };
+type ExaResult = { url?: string; title?: string; text?: string; summary?: string; entities?: any[]; image?: string };
 
 async function exaSearch(apiKey: string, body: Record<string, unknown>): Promise<ExaResult[]> {
   try {
@@ -85,6 +86,7 @@ export async function researchPerson(linkedinUrl: string): Promise<PersonProfile
   let resolvedName = nameFromUrl;
   let headline = "";
   let location = "";
+  let profileImageUrl = "";
   let workHistory: WorkHistoryEntry[] = [];
   let education: EducationEntry[] = [];
   const companies: CompanyInfo[] = [];
@@ -116,11 +118,18 @@ export async function researchPerson(linkedinUrl: string): Promise<PersonProfile
       }
     }
 
+    // Extract profile image
+    if (match.image) {
+      profileImageUrl = match.image;
+    }
+
     const entity = match.entities?.[0];
     if (entity?.properties) {
       const props = entity.properties;
       if (props.name) resolvedName = props.name;
       if (props.location) location = props.location;
+      if (props.imageUrl && !profileImageUrl) profileImageUrl = props.imageUrl;
+      if (props.image && !profileImageUrl) profileImageUrl = props.image;
 
       if (props.workHistory) {
         workHistory = props.workHistory.map(
@@ -242,6 +251,7 @@ export async function researchPerson(linkedinUrl: string): Promise<PersonProfile
     headline: headline || `${resolvedName}`,
     location,
     summary,
+    profileImageUrl,
     workHistory,
     education,
     companies,
@@ -302,12 +312,13 @@ export async function findPersonByHandle(handle: string): Promise<PersonProfile>
       headline: best?.title || searchName,
       location: "",
       summary: best?.text?.slice(0, 500) || "",
+      profileImageUrl: best?.image || "",
       workHistory: [],
       education: [],
       companies: [],
       narrativeContext: best?.text || "",
       linkedinUrl: best?.url || "",
-      sources: peopleResults.filter((r) => r.url).map((r) => r.url!) ,
+      sources: peopleResults.filter((r) => r.url).map((r) => r.url!),
     };
   }
 
@@ -317,6 +328,7 @@ export async function findPersonByHandle(handle: string): Promise<PersonProfile>
     headline: searchName,
     location: "",
     summary: "",
+    profileImageUrl: "",
     workHistory: [],
     education: [],
     companies: [],
