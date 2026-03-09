@@ -7,7 +7,12 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
 
 export async function POST(req: NextRequest) {
   try {
-    const { sessionId } = await req.json();
+    const { sessionId, url, handle } = await req.json();
+
+    // Build return URL with original search params so redirect can resume simulation
+    const returnParams = new URLSearchParams({ paid: "true" });
+    if (url) returnParams.set("url", url);
+    if (handle) returnParams.set("handle", handle);
 
     const session = await stripe.checkout.sessions.create({
       ui_mode: "embedded",
@@ -25,7 +30,7 @@ export async function POST(req: NextRequest) {
         },
       ],
       mode: "payment",
-      return_url: `${req.nextUrl.origin}/simulate?paid=true&sid={CHECKOUT_SESSION_ID}`,
+      return_url: `${req.nextUrl.origin}/simulate?${returnParams.toString()}&sid={CHECKOUT_SESSION_ID}`,
       metadata: {
         simulation_session_id: sessionId || "",
       },

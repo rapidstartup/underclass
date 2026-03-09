@@ -16,18 +16,27 @@ interface PaywallProps {
   onPaymentComplete: () => void;
   onContinueFree: () => void;
   personName?: string;
+  searchParams?: { url?: string; handle?: string };
 }
 
-export default function Paywall({ onPaymentComplete, onContinueFree, personName }: PaywallProps) {
+export default function Paywall({ onPaymentComplete, onContinueFree, personName, searchParams }: PaywallProps) {
   const [showCheckout, setShowCheckout] = useState(false);
   const [clientSecret, setClientSecret] = useState<string | null>(null);
 
   const handleUnlock = useCallback(async () => {
     try {
+      // Save current state so redirect can resume
+      if (searchParams?.url) localStorage.setItem("underclass_url", searchParams.url);
+      if (searchParams?.handle) localStorage.setItem("underclass_handle", searchParams.handle);
+
       const res = await fetch("/api/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ sessionId: "" }),
+        body: JSON.stringify({
+          sessionId: "",
+          url: searchParams?.url || "",
+          handle: searchParams?.handle || "",
+        }),
       });
       const data = await res.json();
       if (data.clientSecret) {

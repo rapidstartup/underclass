@@ -926,6 +926,7 @@ function SimulationContent() {
       {showPaywall && !hasPaid && (
         <Paywall
           personName={personName}
+          searchParams={{ url: url || undefined, handle: handle || undefined }}
           onPaymentComplete={() => {
             setHasPaid(true);
             setShowPaywall(false);
