@@ -1,7 +1,7 @@
 // Growth hack: Replace social media URLs in generated content with our app URL
 // When users share screenshots of their simulation, the URLs point back to us
 
-const APP_DOMAIN = "whats-next-inky.vercel.app";
+const APP_DOMAIN = "whats-next-silk-one.vercel.app";
 
 // Patterns to replace: any x.com, twitter.com, or linkedin.com URLs
 const URL_PATTERNS = [
