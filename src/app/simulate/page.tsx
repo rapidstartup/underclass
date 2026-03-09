@@ -8,6 +8,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { Shimmer } from "@/components/Shimmer";
 import { SimulationControls, DEFAULT_SETTINGS, type SimulationSettings } from "@/components/SimulationControls";
+import { posthog } from "@/lib/posthog";
 import { ALL_SIMULATIONS } from "@/simulations/registry";
 import type { Simulation } from "@/simulations/types";
 import { playSound, setSoundEnabled } from "@/lib/sounds";
@@ -137,6 +138,15 @@ function SimulationContent() {
         clearInterval(msgInterval);
         setPersonName(data.name || "");
         setProfileImage(data.profileImageUrl || "");
+
+        // Track simulation start
+        if (posthog.__loaded) {
+          posthog.capture("simulation_started", {
+            person_name: data.name,
+            linkedin_url: url || undefined,
+            handle: handle || undefined,
+          });
+        }
         const profileStr = JSON.stringify(data, null, 2);
         profileRef.current = profileStr;
 
@@ -213,6 +223,11 @@ function SimulationContent() {
       if (settings.userNotes) {
         setAppliedNotes((prev) => [...prev, settings.userNotes]);
       }
+      // Track choice
+      if (posthog.__loaded) {
+        posthog.capture("choice_made", { choice, person_name: personName });
+      }
+
       // Count chapters so far
       let chapterCount = 0;
       messages.forEach((m) => {
@@ -328,8 +343,16 @@ function SimulationContent() {
     if (toolName === "showChapter" && !safeArgs.personName) {
       safeArgs.personName = personName;
     }
-    if (toolName === "showGameOver" && !safeArgs.personName) {
-      safeArgs.personName = personName;
+    if (toolName === "showGameOver") {
+      if (!safeArgs.personName) safeArgs.personName = personName;
+      // Track game over
+      if (posthog.__loaded) {
+        posthog.capture("game_over", {
+          person_name: personName,
+          final_pul: safeArgs.finalPul,
+          outcome: safeArgs.outcome,
+        });
+      }
     }
 
     const layoutClass =
