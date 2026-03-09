@@ -184,11 +184,12 @@ function SimulationContent() {
           msgIdx++;
         }, 2500);
 
-        // Direct LinkedIn URL → skip disambiguation, go straight to research
+        // Direct LinkedIn URL or X/Twitter URL → skip disambiguation, go straight to research
         const hasDirectUrl = url && url.includes("linkedin.com/in/");
+        const isXHandle = (handle || url || "").match(/(?:x\.com|twitter\.com)\//) || (handle || "").startsWith("@");
 
-        // Only run disambiguation for handle/name searches (no direct URL)
-        if (!hasDirectUrl) {
+        // Only run disambiguation for plain name searches (no direct URLs or X handles)
+        if (!hasDirectUrl && !isXHandle) {
           const candidateBody = handle
             ? { handle, candidates: true }
             : { url, candidates: true };
