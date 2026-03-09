@@ -510,13 +510,14 @@ export async function findPersonByHandle(handle: string): Promise<PersonProfile>
       const verifiedText = verification[0]?.text || "";
       
       // Check if the LinkedIn profile matches the person/company from the answer
-      const nameWords = personName.toLowerCase().split(" ");
+      // Company is the strongest signal — names can be ambiguous (two "Garrett Scott"s)
       const titleLower = verifiedTitle.toLowerCase();
       const textLower = verifiedText.toLowerCase().slice(0, 500);
-      const nameMatches = nameWords.some(w => w.length > 2 && titleLower.includes(w));
       const companyMatches = companyName && (titleLower.includes(companyName.toLowerCase()) || textLower.includes(companyName.toLowerCase()));
       
-      if (nameMatches || companyMatches) {
+      // If we have a company name from the answer, REQUIRE company match
+      // Name-only matching fails for common names (e.g. "Garrett Scott" matches multiple people)
+      if (companyMatches || (!companyName && verifiedTitle)) {
         console.log(`[exa] LinkedIn verified: ${verifiedTitle}`);
         return researchPerson(linkedinUrl);
       } else {
