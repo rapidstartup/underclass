@@ -54,8 +54,12 @@ TOOL CALL ORDER FOR EACH CHAPTER:
 
 After 2-3 chapters: showChoice — the player decides their fate.
 
-- CRITICAL: You MUST use tools. Every response must consist ONLY of tool calls. Do NOT write any plain text. Start with showChapter immediately. ALWAYS end with showChoice.
-- ALWAYS call showPULUpdate after each showChapter. Start PUL at 45% for most professionals. Be aggressive with swings.`;
+- CRITICAL: You MUST use tools. Every response must consist ONLY of tool calls. Do NOT write any plain text.
+- Start with showChapter immediately.
+- ALWAYS call showPULUpdate after each showChapter. Start PUL at 45% for most professionals. Be aggressive with swings.
+- You MUST end EVERY response with exactly one showChoice call. This is NON-NEGOTIABLE. The user cannot continue without a choice.
+- Pattern: showChapter → showPULUpdate → 1-2 notifications → showChapter → showPULUpdate → 1-2 notifications → showChoice
+- Keep each response to 2-3 chapters MAX, then showChoice. Do NOT generate more than 3 chapters before a choice.`;
 
 export async function POST(req: Request) {
   const { messages: uiMessages } = await req.json();
@@ -94,8 +98,9 @@ export async function POST(req: Request) {
     model: anthropic("claude-sonnet-4-20250514"),
     system: systemPrompt,
     messages: modelMessages,
-    toolChoice: "auto",
+    toolChoice: "required",
     tools: aiTools,
+    maxTokens: 16000,
     stopWhen: stepCountIs(80),
   });
 
