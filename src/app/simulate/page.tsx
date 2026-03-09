@@ -31,6 +31,7 @@ function SimulationContent() {
   const [isSaving, setIsSaving] = useState(false);
   const [soundOn, setSoundOn] = useState(true);
   const [appliedNotes, setAppliedNotes] = useState<string[]>([]);
+  const [selectedChoices, setSelectedChoices] = useState<Map<string, string>>(new Map());
   const scrollRef = useRef<HTMLDivElement>(null);
   const hasStartedRef = useRef(false);
   const profileRef = useRef("");
@@ -162,12 +163,8 @@ function SimulationContent() {
 
   const handleChoice = useCallback(
     (choice: string) => {
-      console.log("[handleChoice] clicked:", choice, "status:", status, "choiceDisabled:", choiceDisabled);
       if (choiceDisabled) return;
-      if (status !== "ready") {
-        console.log("[handleChoice] blocked — status is:", status);
-        return;
-      }
+      if (status !== "ready") return;
       setChoiceDisabled(true);
       const notes = settings.userNotes ? `\n\nUSER DIRECTION: ${settings.userNotes}` : "";
       if (settings.userNotes) {
@@ -260,10 +257,16 @@ function SimulationContent() {
       }
     }
 
-    // Inject onChoice + disabled for the choice component
-    // Don't disable during streaming — only after user clicks
+    // Inject onChoice + disabled + selected for the choice component
     const extraProps = toolName === "showChoice"
-      ? { onChoice: handleChoice, disabled: choiceDisabled }
+      ? {
+          onChoice: (choice: string) => {
+            setSelectedChoices((prev) => new Map(prev).set(key, choice));
+            handleChoice(choice);
+          },
+          disabled: choiceDisabled,
+          selected: selectedChoices.get(key),
+        }
       : {};
 
     // Inject personName fallback for chapters
@@ -285,7 +288,7 @@ function SimulationContent() {
         </div>
       </ErrorBoundary>
     );
-  }, [handleChoice, choiceDisabled, isStreaming, personName]);
+  }, [handleChoice, choiceDisabled, isStreaming, personName, selectedChoices]);
 
   // Extract tool name from part type
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -404,7 +407,7 @@ function SimulationContent() {
                 let lastChoiceIndex = -1;
                 let globalIndex = 0;
 
-                // First pass: find the last showChoice
+                // Count choices (no longer hiding old ones)
                 messages.forEach((message) => {
                   if (message.role !== "assistant") return;
                   (message.parts || []).forEach((part) => {
@@ -449,10 +452,6 @@ function SimulationContent() {
                     const currentIdx = idx++;
                     const toolInfo = getToolInfo(part);
                     if (toolInfo) {
-                      // Only render the last choice (skip earlier duplicates)
-                      if (toolInfo.toolName === "showChoice" && currentIdx !== lastChoiceIndex) {
-                        return;
-                      }
                       const el = renderTool(
                         toolInfo.toolName,
                         toolInfo.args,
