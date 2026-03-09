@@ -6,6 +6,7 @@ import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport } from "ai";
 import { motion, AnimatePresence } from "framer-motion";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
+import { Shimmer } from "@/components/Shimmer";
 import { SimulationControls, DEFAULT_SETTINGS, type SimulationSettings } from "@/components/SimulationControls";
 import { ALL_SIMULATIONS } from "@/simulations/registry";
 import type { Simulation } from "@/simulations/types";
@@ -266,16 +267,18 @@ function SimulationContent() {
 
               {isStreaming && (
                 <motion.div
-                  className="flex items-center gap-2 mt-6 mb-4"
+                  className="mt-8 mb-4"
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                 >
-                  <div className="flex gap-1">
-                    <div className="w-1.5 h-1.5 bg-cyan-400/40 rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />
-                    <div className="w-1.5 h-1.5 bg-cyan-400/40 rounded-full animate-bounce" style={{ animationDelay: "150ms" }} />
-                    <div className="w-1.5 h-1.5 bg-cyan-400/40 rounded-full animate-bounce" style={{ animationDelay: "300ms" }} />
-                  </div>
-                  <span className="text-white/30 text-sm">simulating...</span>
+                  <Shimmer
+                    as="span"
+                    className="text-sm font-mono tracking-wider"
+                    duration={2}
+                    spread={3}
+                  >
+                    simulating the future...
+                  </Shimmer>
                 </motion.div>
               )}
             </motion.div>

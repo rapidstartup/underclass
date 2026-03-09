@@ -5,6 +5,7 @@ export type { Simulation, SimulationSchema } from "./types";
 import { simulation as chapter } from "./chapter";
 import { simulation as aiMilestone } from "./ai-milestone";
 import { simulation as choice } from "./choice";
+import { simulation as pulUpdate } from "./pul-update";
 
 // ── Social ──────────────────────────────────────────────────
 import { simulation as twitterPost } from "./twitter-post";
@@ -36,6 +37,7 @@ export const ALL_SIMULATIONS: Simulation[] = [
   chapter,
   aiMilestone,
   choice,
+  pulUpdate,
 
   // Social
   twitterPost,
