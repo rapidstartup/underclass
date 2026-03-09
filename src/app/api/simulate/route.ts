@@ -2,7 +2,7 @@ import { streamText, tool, stepCountIs, convertToModelMessages } from "ai";
 import { anthropic } from "@ai-sdk/anthropic";
 import { ALL_SIMULATIONS, buildPromptFragments } from "@/simulations/registry";
 
-export const maxDuration = 60;
+export const maxDuration = 300;
 
 const BASE_PROMPT = `You are the game master of "What's Next" — a simulation game where players navigate the age of AI and try to avoid falling into the PERMANENT UNDERCLASS.
 

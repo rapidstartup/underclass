@@ -157,7 +157,7 @@ function SimulationContent() {
     [sendMessage, settings.userNotes]
   );
 
-  // Auto-continue: when streaming finishes and last tool wasn't a choice, keep going
+  // Auto-continue: when streaming finishes, either auto-pick a choice or continue
   const prevStatusRef = useRef(status);
   useEffect(() => {
     const wasStreaming = prevStatusRef.current === "streaming" || prevStatusRef.current === "submitted";
@@ -166,20 +166,38 @@ function SimulationContent() {
 
     if (!wasStreaming || !nowReady || isResearching) return;
 
-    // Check if the last tool was a choice — if so, wait for user input
+    // Find the last tool in the last assistant message
     const lastMsg = messages[messages.length - 1];
+    let lastToolName: string | null = null;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let lastToolArgs: any = null;
     if (lastMsg?.role === "assistant") {
       const parts = lastMsg.parts || [];
       for (let i = parts.length - 1; i >= 0; i--) {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const p = parts[i] as any;
-        const toolName = p.toolName || (typeof p.type === "string" && p.type.startsWith("tool-") ? p.type.slice(5) : null);
-        if (toolName === "showChoice") return; // Wait for user to pick
-        if (toolName) break; // Last tool wasn't a choice — auto-continue
+        const tn = p.toolName || (typeof p.type === "string" && p.type.startsWith("tool-") ? p.type.slice(5) : null);
+        if (tn) {
+          lastToolName = tn;
+          lastToolArgs = p.input || {};
+          break;
+        }
       }
     }
 
-    // Auto-continue after a short pause
+    if (lastToolName === "showChoice") {
+      // Auto-pick a random choice after 8 seconds if user doesn't click
+      const timer = setTimeout(() => {
+        if (status !== "ready") return; // User already picked
+        const optA = lastToolArgs?.optionA || "Path A";
+        const optB = lastToolArgs?.optionB || "Path B";
+        const pick = Math.random() > 0.5 ? optA : optB;
+        handleChoice(pick);
+      }, 8000);
+      return () => clearTimeout(timer);
+    }
+
+    // No choice at end — auto-continue after a short pause
     const timer = setTimeout(() => {
       const notes = settings.userNotes ? `\n\nUSER DIRECTION: ${settings.userNotes}` : "";
       sendMessage({
@@ -188,7 +206,7 @@ function SimulationContent() {
     }, 1500);
 
     return () => clearTimeout(timer);
-  }, [status, messages, isResearching, sendMessage, settings.userNotes]);
+  }, [status, messages, isResearching, sendMessage, settings.userNotes, handleChoice]);
 
   // Track which tools have already played sounds
   const playedSoundsRef = useRef(new Set<string>());
