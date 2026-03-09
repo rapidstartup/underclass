@@ -13,6 +13,9 @@ import { ALL_SIMULATIONS } from "@/simulations/registry";
 import type { Simulation } from "@/simulations/types";
 import { playSound, setSoundEnabled } from "@/lib/sounds";
 import { viralizeUrls } from "@/lib/viral";
+import dynamic from "next/dynamic";
+
+const Paywall = dynamic(() => import("@/components/Paywall"), { ssr: false });
 
 // Build lookup maps from the simulation registry
 const TOOL_MAP = new Map<string, Simulation>(
@@ -40,6 +43,8 @@ function SimulationContent() {
   const [appliedNotes, setAppliedNotes] = useState<string[]>([]);
   const [steeringNotes, setSteeringNotes] = useState<Array<{ text: string; id: number }>>([]);
   const [selectedChoices, setSelectedChoices] = useState<Map<string, string>>(new Map());
+  const [showPaywall, setShowPaywall] = useState(false);
+  const [hasPaid, setHasPaid] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const hasStartedRef = useRef(false);
   const profileRef = useRef("");
@@ -53,6 +58,15 @@ function SimulationContent() {
   });
 
   const isStreaming = status === "streaming" || status === "submitted";
+
+  // Check if already paid (localStorage or URL param from Stripe redirect)
+  useEffect(() => {
+    const paid = localStorage.getItem("underclass_paid");
+    const urlPaid = searchParams.get("paid");
+    if (paid || urlPaid === "true") {
+      setHasPaid(true);
+    }
+  }, [searchParams]);
 
   // Stall detector: if streaming for 45s+ with no new content, retry
   const lastMessageCountRef = useRef(0);
@@ -370,6 +384,22 @@ function SimulationContent() {
     }
 
     if (lastToolName === "showChoice") {
+      // Check paywall before allowing choice
+      if (!hasPaid) {
+        let chaptersSoFar = 0;
+        messages.forEach((m) => {
+          if (m.role !== "assistant") return;
+          (m.parts || []).forEach((p) => {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const tn = (p as any).toolName || (typeof (p as any).type === "string" && (p as any).type.startsWith("tool-show") ? (p as any).type.slice(5) : null);
+            if (tn === "showChapter") chaptersSoFar++;
+          });
+        });
+        if (chaptersSoFar >= 4) {
+          setShowPaywall(true);
+          return;
+        }
+      }
       // Wait for user to pick — don't auto-continue
       return;
     }
@@ -377,6 +407,23 @@ function SimulationContent() {
     if (lastToolName === "showGameOver") {
       // Game is over — don't continue
       return;
+    }
+
+    // Paywall check on auto-continue too
+    if (!hasPaid) {
+      let chaptersSoFar = 0;
+      messages.forEach((m) => {
+        if (m.role !== "assistant") return;
+        (m.parts || []).forEach((p) => {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const tn = (p as any).toolName || (typeof (p as any).type === "string" && (p as any).type.startsWith("tool-show") ? (p as any).type.slice(5) : null);
+          if (tn === "showChapter") chaptersSoFar++;
+        });
+      });
+      if (chaptersSoFar >= 4) {
+        setShowPaywall(true);
+        return;
+      }
     }
 
     // No choice at end — auto-continue after a short pause
@@ -871,6 +918,17 @@ function SimulationContent() {
 
           <SimulationControls settings={settings} onSettingsChange={handleSettings} onSteer={handleSteer} />
         </>
+      )}
+
+      {/* Paywall overlay */}
+      {showPaywall && !hasPaid && (
+        <Paywall
+          personName={personName}
+          onPaymentComplete={() => {
+            setHasPaid(true);
+            setShowPaywall(false);
+          }}
+        />
       )}
     </main>
   );
