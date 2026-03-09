@@ -1,16 +1,28 @@
 import { NextResponse } from "next/server";
-import { researchPerson } from "@/lib/exa";
+import { researchPerson, findPersonByHandle } from "@/lib/exa";
 
 export async function POST(req: Request) {
   try {
-    const { url } = await req.json();
+    const { url, handle } = await req.json();
 
-    if (!url) {
-      return NextResponse.json({ error: "URL is required" }, { status: 400 });
+    if (!url && !handle) {
+      return NextResponse.json({ error: "URL or handle is required" }, { status: 400 });
     }
 
-    const profile = await researchPerson(url);
-    return NextResponse.json(profile);
+    // If we have a direct LinkedIn URL, use it
+    if (url && url.includes("linkedin.com")) {
+      const profile = await researchPerson(url);
+      return NextResponse.json(profile);
+    }
+
+    // If we have a handle/name, search for the person first
+    if (handle || url) {
+      const query = handle || url;
+      const profile = await findPersonByHandle(query);
+      return NextResponse.json(profile);
+    }
+
+    return NextResponse.json({ error: "Could not resolve profile" }, { status: 400 });
   } catch (error) {
     console.error("Research error:", error);
     return NextResponse.json(

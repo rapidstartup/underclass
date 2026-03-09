@@ -250,3 +250,78 @@ export async function researchPerson(linkedinUrl: string): Promise<PersonProfile
     sources: [...new Set(sources)],
   };
 }
+
+/**
+ * Find a person by handle/username/name — searches Exa for the person,
+ * finds their LinkedIn profile, then does full research.
+ */
+export async function findPersonByHandle(handle: string): Promise<PersonProfile> {
+  const apiKey = process.env.EXA_API_KEY;
+  if (!apiKey) throw new Error("EXA_API_KEY not set");
+
+  // Clean up the handle — could be "shaiunterslak", "shai-unterslak", "Shai Unterslak"
+  const searchName = handle
+    .replace(/[-_]/g, " ")
+    .replace(/([a-z])([A-Z])/g, "$1 $2")
+    .trim();
+
+  // Search for this person on LinkedIn via Exa
+  const results = await exaSearch(apiKey, {
+    query: `${searchName} site:linkedin.com/in/`,
+    type: "auto",
+    numResults: 5,
+    contents: { text: { maxCharacters: 500 } },
+  });
+
+  // Find the best LinkedIn match
+  const linkedinResult = results.find((r) => r.url?.includes("linkedin.com/in/"));
+
+  if (linkedinResult?.url) {
+    // Found their LinkedIn — do full research
+    return researchPerson(linkedinResult.url);
+  }
+
+  // No LinkedIn found — try a broader people search
+  const peopleResults = await exaSearch(apiKey, {
+    query: searchName,
+    category: "people",
+    type: "auto",
+    numResults: 3,
+    contents: { text: { maxCharacters: 2000 } },
+  });
+
+  if (peopleResults.length > 0) {
+    const best = peopleResults.find((r) => r.url?.includes("linkedin.com")) || peopleResults[0];
+    if (best?.url?.includes("linkedin.com")) {
+      return researchPerson(best.url);
+    }
+
+    // Build a basic profile from what we found
+    return {
+      name: best?.title?.split("|")[0]?.trim() || searchName,
+      headline: best?.title || searchName,
+      location: "",
+      summary: best?.text?.slice(0, 500) || "",
+      workHistory: [],
+      education: [],
+      companies: [],
+      narrativeContext: best?.text || "",
+      linkedinUrl: best?.url || "",
+      sources: peopleResults.filter((r) => r.url).map((r) => r.url!) ,
+    };
+  }
+
+  // Last resort — return minimal profile with just the name
+  return {
+    name: searchName,
+    headline: searchName,
+    location: "",
+    summary: "",
+    workHistory: [],
+    education: [],
+    companies: [],
+    narrativeContext: "",
+    linkedinUrl: "",
+    sources: [],
+  };
+}

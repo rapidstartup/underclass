@@ -21,6 +21,7 @@ const TOOL_MAP = new Map<string, Simulation>(
 function SimulationContent() {
   const searchParams = useSearchParams();
   const url = searchParams.get("url") || "";
+  const handle = searchParams.get("handle") || "";
   const [isResearching, setIsResearching] = useState(true);
   const [researchStatus, setResearchStatus] = useState("Researching...");
   const [choiceDisabled, setChoiceDisabled] = useState(false);
@@ -56,16 +57,17 @@ function SimulationContent() {
 
   // Research the person and start simulation
   useEffect(() => {
-    if (!url || hasStartedRef.current) return;
+    if ((!url && !handle) || hasStartedRef.current) return;
     hasStartedRef.current = true;
 
     const research = async () => {
       try {
-        setResearchStatus("Looking up profile...");
+        setResearchStatus(handle ? `Searching for ${handle}...` : "Looking up profile...");
+        const body = handle ? { handle } : { url };
         const res = await fetch("/api/research", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ url }),
+          body: JSON.stringify(body),
         });
         const data = await res.json();
         setPersonName(data.name || "");
