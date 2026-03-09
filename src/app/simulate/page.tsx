@@ -311,10 +311,50 @@ function SimulationContent() {
     }
   }, [status, messages.length]);
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const getToolInfo = (part: any): { toolName: string; args: any } | null => {
+    if (part.state === "input-streaming") return null;
+
+    if (part.type === "dynamic-tool" && part.toolName) {
+      return { toolName: part.toolName, args: part.input || {} };
+    }
+    if (typeof part.type === "string" && part.type.startsWith("tool-")) {
+      const toolName = part.type.slice(5);
+      return { toolName, args: part.input || {} };
+    }
+    if (part.type === "tool-invocation" && part.toolInvocation) {
+      return { toolName: part.toolInvocation.toolName, args: part.toolInvocation.args || part.toolInvocation.input || {} };
+    }
+    return null;
+  };
+
+  // Helper: count chapters in current messages
+  const countChapters = useCallback(() => {
+    let count = 0;
+    messages.forEach((m) => {
+      if (m.role !== "assistant") return;
+      (m.parts || []).forEach((p) => {
+        const info = getToolInfo(p as any);
+        if (info?.toolName === "showChapter") count++;
+      });
+    });
+    return count;
+  }, [messages]);
+
   const handleChoice = useCallback(
     (choice: string) => {
       if (choiceDisabled) return;
       if (status !== "ready") return;
+
+      // Paywall check
+      if (!hasPaid) {
+        const chapters = countChapters();
+        if (chapters >= 4) {
+          setShowPaywall(true);
+          return;
+        }
+      }
+
       setChoiceDisabled(true);
       const notes = settings.userNotes ? `\n\nUSER DIRECTION: ${settings.userNotes}` : "";
       if (settings.userNotes) {
@@ -325,17 +365,7 @@ function SimulationContent() {
         posthog.capture("choice_made", { choice, person_name: personName });
       }
 
-      // Count chapters so far
-      let chapterCount = 0;
-      messages.forEach((m) => {
-        if (m.role !== "assistant") return;
-        (m.parts || []).forEach((p) => {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const tn = (p as any).toolName || (typeof (p as any).type === "string" && (p as any).type.startsWith("tool-show") ? (p as any).type.slice(5) : null);
-          if (tn === "showChapter") chapterCount++;
-        });
-      });
-
+      const chapterCount = countChapters();
       const endHint = chapterCount >= 9 ? "\n\nIMPORTANT: This is chapter ~" + (chapterCount + 1) + "+. END the game with showGameOver after 1-2 more chapters." : "";
       sendMessage({
         text: `I chose: "${choice}". Continue the simulation from where we left off — advance the timeline, show consequences of this choice, then present another choice after 2-3 chapters. Use varied simulation types!${endHint}${notes}\n\nPROFILE DATA:\n${profileRef.current}`,
@@ -352,7 +382,7 @@ function SimulationContent() {
         }
       }, 300);
     },
-    [sendMessage, settings.userNotes, status, choiceDisabled]
+    [sendMessage, settings.userNotes, status, choiceDisabled, hasPaid, countChapters]
   );
 
   // Auto-continue: when streaming finishes, either auto-pick a choice or continue
@@ -385,20 +415,9 @@ function SimulationContent() {
 
     if (lastToolName === "showChoice") {
       // Check paywall before allowing choice
-      if (!hasPaid) {
-        let chaptersSoFar = 0;
-        messages.forEach((m) => {
-          if (m.role !== "assistant") return;
-          (m.parts || []).forEach((p) => {
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            const tn = (p as any).toolName || (typeof (p as any).type === "string" && (p as any).type.startsWith("tool-show") ? (p as any).type.slice(5) : null);
-            if (tn === "showChapter") chaptersSoFar++;
-          });
-        });
-        if (chaptersSoFar >= 4) {
-          setShowPaywall(true);
-          return;
-        }
+      if (!hasPaid && countChapters() >= 4) {
+        setShowPaywall(true);
+        return;
       }
       // Wait for user to pick — don't auto-continue
       return;
@@ -410,20 +429,9 @@ function SimulationContent() {
     }
 
     // Paywall check on auto-continue too
-    if (!hasPaid) {
-      let chaptersSoFar = 0;
-      messages.forEach((m) => {
-        if (m.role !== "assistant") return;
-        (m.parts || []).forEach((p) => {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const tn = (p as any).toolName || (typeof (p as any).type === "string" && (p as any).type.startsWith("tool-show") ? (p as any).type.slice(5) : null);
-          if (tn === "showChapter") chaptersSoFar++;
-        });
-      });
-      if (chaptersSoFar >= 4) {
-        setShowPaywall(true);
-        return;
-      }
+    if (!hasPaid && countChapters() >= 4) {
+      setShowPaywall(true);
+      return;
     }
 
     // No choice at end — auto-continue after a short pause
@@ -435,7 +443,7 @@ function SimulationContent() {
     }, 1500);
 
     return () => clearTimeout(timer);
-  }, [status, messages, isResearching, sendMessage, settings.userNotes, handleChoice]);
+  }, [status, messages, isResearching, sendMessage, settings.userNotes, handleChoice, hasPaid, countChapters]);
 
   // Track which tools have already played sounds
   const playedSoundsRef = useRef(new Set<string>());
@@ -530,22 +538,6 @@ function SimulationContent() {
 
   // Extract tool name from part type
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const getToolInfo = (part: any): { toolName: string; args: any } | null => {
-    if (part.state === "input-streaming") return null;
-
-    if (part.type === "dynamic-tool" && part.toolName) {
-      return { toolName: part.toolName, args: part.input || {} };
-    }
-    if (typeof part.type === "string" && part.type.startsWith("tool-")) {
-      const toolName = part.type.slice(5);
-      return { toolName, args: part.input || {} };
-    }
-    if (part.type === "tool-invocation" && part.toolInvocation) {
-      return { toolName: part.toolInvocation.toolName, args: part.toolInvocation.args || part.toolInvocation.input || {} };
-    }
-    return null;
-  };
-
   return (
     <main className="relative min-h-screen">
       <div
