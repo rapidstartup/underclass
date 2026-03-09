@@ -183,38 +183,35 @@ function SimulationContent() {
           msgIdx++;
         }, 2500);
 
-        // First, get candidates for disambiguation
-        const candidateBody = handle
-          ? { handle, candidates: true }
-          : { url, candidates: true };
-        const candidateRes = await fetch("/api/research", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(candidateBody),
-        });
-        const candidateData = await candidateRes.json();
-        const foundCandidates = candidateData.candidates || [];
+        // Direct LinkedIn URL → skip disambiguation, go straight to research
+        const hasDirectUrl = url && url.includes("linkedin.com/in/");
 
-        // Check if the first candidate is an exact slug match
-        const inputSlug = (url || `https://www.linkedin.com/in/${handle}`)
-          .split("/in/")[1]?.replace(/[/?#].*/g, "").replace(/\//g, "") || "";
-        const firstSlug = (foundCandidates[0]?.linkedinUrl || "")
-          .split("/in/")[1]?.replace(/[/?#].*/g, "").replace(/\//g, "") || "";
-        const hasExactMatch = inputSlug && firstSlug && inputSlug.toLowerCase() === firstSlug.toLowerCase();
+        // Only run disambiguation for handle/name searches (no direct URL)
+        if (!hasDirectUrl) {
+          const candidateBody = handle
+            ? { handle, candidates: true }
+            : { url, candidates: true };
+          const candidateRes = await fetch("/api/research", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(candidateBody),
+          });
+          const candidateData = await candidateRes.json();
+          const foundCandidates = candidateData.candidates || [];
 
-        // If exact match, skip disambiguation. If multiple different people, let user pick.
-        if (!hasExactMatch && foundCandidates.length > 1) {
-          const uniqueNames = new Set(foundCandidates.map((c: { name: string }) => c.name.toLowerCase()));
-          if (uniqueNames.size > 1) {
-            clearInterval(msgInterval);
-            setIsResearching(false);
-            setCandidates(foundCandidates.slice(0, 3));
-            return; // Wait for user to pick
+          if (foundCandidates.length > 1) {
+            const uniqueNames = new Set(foundCandidates.map((c: { name: string }) => c.name.toLowerCase()));
+            if (uniqueNames.size > 1) {
+              clearInterval(msgInterval);
+              setIsResearching(false);
+              setCandidates(foundCandidates.slice(0, 3));
+              return; // Wait for user to pick
+            }
           }
         }
 
-        // Single clear match — proceed with full research
-        const body = handle ? { handle } : { url };
+        // Research the person
+        const body = hasDirectUrl ? { url } : (handle ? { handle } : { url });
         const res = await fetch("/api/research", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
