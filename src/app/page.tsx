@@ -81,16 +81,18 @@ export default function Home() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!url.trim()) return;
+    const input = url.trim();
+    if (!input) return;
 
     setIsLoading(true);
 
-    let linkedinUrl = url.trim();
-    if (!linkedinUrl.startsWith("http")) {
-      linkedinUrl = `https://www.linkedin.com/in/${linkedinUrl.replace(/^\/+/, "")}`;
+    // If it looks like a LinkedIn URL, use it directly
+    if (input.includes("linkedin.com/in/")) {
+      router.push(`/simulate?url=${encodeURIComponent(input)}`);
+    } else {
+      // Treat as a name/handle — search via Exa
+      router.push(`/simulate?handle=${encodeURIComponent(input)}`);
     }
-
-    router.push(`/simulate?url=${encodeURIComponent(linkedinUrl)}`);
   };
 
   return (
@@ -132,14 +134,11 @@ export default function Home() {
           transition={{ duration: 0.8, ease: "easeOut", delay: 0.3 }}
         >
           <div className="glass rounded-full flex items-center p-1.5 pl-6 transition-all duration-300 focus-within:border-white/25">
-            <span className="text-white/40 text-sm mr-1 hidden sm:inline whitespace-nowrap">
-              linkedin.com/in/
-            </span>
             <input
               type="text"
               value={url}
               onChange={(e) => setUrl(e.target.value)}
-              placeholder="paste linkedin url or username"
+              placeholder="paste linkedin url or name"
               className="flex-1 bg-transparent text-white text-sm outline-none placeholder:text-white/30 py-3"
               autoFocus
             />
