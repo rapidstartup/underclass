@@ -192,15 +192,8 @@ function SimulationContent() {
     }
 
     if (lastToolName === "showChoice") {
-      // Auto-pick a random choice after 8 seconds if user doesn't click
-      const timer = setTimeout(() => {
-        if (status !== "ready") return; // User already picked
-        const optA = lastToolArgs?.optionA || "Path A";
-        const optB = lastToolArgs?.optionB || "Path B";
-        const pick = Math.random() > 0.5 ? optA : optB;
-        handleChoice(pick);
-      }, 8000);
-      return () => clearTimeout(timer);
+      // Wait for user to pick — don't auto-continue
+      return;
     }
 
     // No choice at end — auto-continue after a short pause
