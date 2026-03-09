@@ -359,7 +359,7 @@ function SimulationContent() {
       // Paywall check
       if (!hasPaid) {
         const chapters = countChapters();
-        if (chapters >= 2) {
+        if (chapters >= 1) {
           setShowPaywall(true);
           return;
         }
@@ -425,7 +425,7 @@ function SimulationContent() {
 
     if (lastToolName === "showChoice") {
       // Check paywall before allowing choice
-      if (!hasPaid && countChapters() >= 2) {
+      if (!hasPaid && countChapters() >= 1) {
         setShowPaywall(true);
         return;
       }
@@ -439,7 +439,7 @@ function SimulationContent() {
     }
 
     // Paywall check on auto-continue too
-    if (!hasPaid && countChapters() >= 2) {
+    if (!hasPaid && countChapters() >= 1) {
       setShowPaywall(true);
       return;
     }
