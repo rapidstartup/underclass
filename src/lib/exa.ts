@@ -117,6 +117,76 @@ async function verifyLinkedInCandidate(
     companyLikelyMatches(expectedCompany, verifiedTitle, verifiedText);
 }
 
+interface XProfileSnapshot {
+  name: string;
+  handle: string;
+  bio: string;
+  location: string;
+  website: string;
+  profileImageUrl: string;
+  sourceUrl: string;
+}
+
+async function fetchXProfileSnapshot(handle: string): Promise<XProfileSnapshot | null> {
+  const cleanHandle = handle.replace(/^@/, "").trim();
+  if (!cleanHandle) return null;
+
+  try {
+    const res = await fetch(`https://r.jina.ai/http://x.com/${cleanHandle}`);
+    if (!res.ok) return null;
+    const rawMarkdown = await res.text();
+    const markdown = rawMarkdown.replace(/\\n/g, "\n");
+    if (!markdown || !markdown.includes(`@${cleanHandle}`)) return null;
+
+    const bioMatch = markdown.match(new RegExp(`@${cleanHandle}\\s*\\n\\n([^\\n]+)`, "i"));
+    const bio = (bioMatch?.[1] || "").trim();
+
+    const nameMatch = markdown.match(new RegExp(`\\n([^\\n@][^\\n]{1,80})\\n\\n@${cleanHandle}\\b`, "i"));
+    const parsedName = (nameMatch?.[1] || "").trim();
+
+    const afterHandle = markdown.split(new RegExp(`@${cleanHandle}\\s*\\n\\n`, "i"))[1] || "";
+    const lines = afterHandle
+      .split("\n")
+      .map((line) => line.trim())
+      .filter(Boolean);
+
+    let location = "";
+    let website = "";
+    for (const line of lines.slice(1, 8)) {
+      const websiteMatch = line.match(/\[([^\]]+)\]\((https?:\/\/[^)]+)\)/);
+      if (websiteMatch?.[1]) {
+        const label = websiteMatch[1].trim();
+        if (/\./.test(label)) {
+          website = label.startsWith("http") ? label : `https://${label}`;
+        }
+      }
+
+      if (!websiteMatch && (line.startsWith("[") || /following|followers|joined|posts|replies|highlights|media/i.test(line))) {
+        continue;
+      }
+
+      if (!location && !line.startsWith("[")) {
+        location = line.replace(/\[[^\]]+\]\([^)]+\)/g, "").trim();
+      }
+    }
+
+    const imageMatch = markdown.match(/https:\/\/pbs\.twimg\.com\/profile_images\/[^\s)]+/i);
+    const profileImageUrl = (imageMatch?.[0] || "").trim();
+
+    return {
+      name: parsedName || cleanHandle,
+      handle: cleanHandle,
+      bio,
+      location,
+      website,
+      profileImageUrl,
+      sourceUrl: `https://x.com/${cleanHandle}`,
+    };
+  } catch {
+    return null;
+  }
+}
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type ExaResult = { url?: string; title?: string; text?: string; summary?: string; entities?: any[]; image?: string };
 
@@ -583,7 +653,11 @@ export async function findPersonByHandle(handle: string): Promise<PersonProfile>
     console.log(`[exa] Trying handle as LinkedIn slug: ${linkedinUrl}`);
     try {
       const directResults = await exaGetContents(apiKey, [linkedinUrl]);
-      if (directResults[0]?.text && directResults[0]?.title) {
+      const first = directResults[0];
+      const title = first?.title?.toLowerCase() || "";
+      const looksLikeAuthPage = /log in|sign in|join linkedin/.test(title);
+      const hasExpectedSlug = (first?.url || "").toLowerCase().includes(`/in/${handle.replace(/^@/, "").toLowerCase()}`);
+      if (first?.text && first?.title && hasExpectedSlug && !looksLikeAuthPage) {
         console.log(`[exa] LinkedIn profile found: ${directResults[0].title}`);
         return researchPerson(linkedinUrl);
       }
@@ -603,25 +677,27 @@ export async function findPersonByHandle(handle: string): Promise<PersonProfile>
     const xHandle = xHandleMatch[1];
     console.log(`[exa] Detected X handle: @${xHandle}, using Exa Answer to find LinkedIn`);
 
-    const [answer, nameOnlyAnswer, companyOnlyAnswer] = await Promise.all([
+    const [answer, nameOnlyAnswer, companyOnlyAnswer, xSnapshot] = await Promise.all([
       exaAnswer(apiKey, `Who is @${xHandle} on X/Twitter? What is their full name, current role/company, and LinkedIn profile URL?`),
       exaAnswer(apiKey, `What is the full name of @${xHandle} on X/Twitter? Return only the person name.`),
       exaAnswer(apiKey, `What company is @${xHandle} on X/Twitter best known for? Return only company/organization name.`),
+      fetchXProfileSnapshot(xHandle),
     ]);
 
     const explicitName = extractLikelyPersonName(nameOnlyAnswer);
     const fallbackName = extractLikelyPersonName(answer);
-    const personName = explicitName || fallbackName;
+    const personName = xSnapshot?.name || explicitName || fallbackName || xHandle;
     const companyName =
       extractLikelyCompanyName(companyOnlyAnswer) ||
       extractLikelyCompanyName(answer);
+    const canTrustLinkedIn = Boolean(companyName);
 
     console.log(`[exa] Exa Answer identified: ${personName} (${companyName})`);
 
     // Extract LinkedIn URL from the answer
     const linkedinMatch = answer.match(/linkedin\.com\/in\/([a-zA-Z0-9_-]+)/);
     
-    if (linkedinMatch) {
+    if (linkedinMatch && canTrustLinkedIn) {
       const linkedinUrl = `https://www.linkedin.com/in/${linkedinMatch[1]}`;
 
       // VERIFY the LinkedIn profile matches person/company — Exa Answer can hallucinate URLs.
@@ -657,7 +733,7 @@ export async function findPersonByHandle(handle: string): Promise<PersonProfile>
     }
     
     // LinkedIn URL missing or wrong — search by name + company
-    if (personName) {
+    if (personName && canTrustLinkedIn) {
       const searchQuery = companyName ? `${personName} ${companyName}` : personName;
       console.log(`[exa] Searching LinkedIn by name: ${searchQuery}`);
       
@@ -693,23 +769,43 @@ export async function findPersonByHandle(handle: string): Promise<PersonProfile>
           return researchPerson(result.url);
         }
       }
-
-      // If we can't confidently map to LinkedIn, return an identity-safe profile
-      // rather than accidentally returning a different person with a similar name.
-      return {
-        name: personName,
-        headline: companyName ? `${personName} | ${companyName}` : `${personName}`,
-        location: "",
-        summary: answer.slice(0, 500),
-        profileImageUrl: "",
-        workHistory: [],
-        education: [],
-        companies: [],
-        narrativeContext: answer || `X handle @${xHandle}`,
-        linkedinUrl: "",
-        sources: [],
-      };
     }
+
+    // If we can't confidently map to LinkedIn, return an identity-safe X-enriched profile
+    // rather than accidentally returning a different person with a similar name.
+    const profileName = personName || xSnapshot?.name || xHandle;
+    const profileLocation = xSnapshot?.location || "";
+    const profileWebsite = xSnapshot?.website || "";
+    const profileBio = xSnapshot?.bio || "";
+    const profileSummaryParts = [
+      profileBio,
+      companyName ? `Known for: ${companyName}` : "",
+      profileWebsite ? `Website: ${profileWebsite}` : "",
+      !profileBio ? answer.slice(0, 320) : "",
+    ].filter(Boolean);
+    const profileSummary = profileSummaryParts.join(" ");
+
+    return {
+      name: profileName,
+      headline: companyName
+        ? `${profileName} | ${companyName}`
+        : (profileBio ? `${profileName} | X profile` : `${profileName}`),
+      location: profileLocation,
+      summary: profileSummary.slice(0, 500),
+      profileImageUrl: xSnapshot?.profileImageUrl || "",
+      workHistory: [],
+      education: [],
+      companies: [],
+      narrativeContext: [
+        `X profile: @${xHandle}`,
+        profileBio ? `Bio: ${profileBio}` : "",
+        companyName ? `Known for: ${companyName}` : "",
+        profileWebsite ? `Website: ${profileWebsite}` : "",
+        !profileBio && answer ? `Exa context: ${answer}` : "",
+      ].filter(Boolean).join("\n"),
+      linkedinUrl: "",
+      sources: [...new Set([xSnapshot?.sourceUrl, profileWebsite].filter(Boolean) as string[])],
+    };
   }
 
   // Clean up the handle — could be "shaiunterslak", "shai-unterslak", "Shai Unterslak"
