@@ -41,6 +41,7 @@ export default function SharedSessionPage() {
   const [session, setSession] = useState<SessionData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [isContinuing, setIsContinuing] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -146,6 +147,12 @@ export default function SharedSessionPage() {
     );
   }
 
+  const handleContinue = () => {
+    if (!session?.id || isContinuing) return;
+    setIsContinuing(true);
+    router.push(`/simulate?resumeSession=${encodeURIComponent(session.id)}`);
+  };
+
   const elements: React.ReactNode[] = [];
   session.messages.forEach((message, messageIndex) => {
     if (message.role !== "assistant") return;
@@ -178,11 +185,11 @@ export default function SharedSessionPage() {
             animate={{ opacity: 1, y: 0 }}
           >
             <p className="text-white/30 text-sm mb-1">
-              {session.personName}&apos;s future simulation
+              {session.personName}&apos;s ReplaceProof simulation
             </p>
             {session.finalPul !== undefined && session.finalPul !== null && (
               <p className="text-white/40 text-xs">
-                Final PUL: <span className={session.finalPul <= 30 ? "text-green-400" : session.finalPul <= 60 ? "text-yellow-400" : "text-red-400"}>
+                Final risk index: <span className={session.finalPul <= 30 ? "text-green-400" : session.finalPul <= 60 ? "text-yellow-400" : "text-red-400"}>
                   {session.finalPul}%
                 </span>
               </p>
@@ -202,12 +209,21 @@ export default function SharedSessionPage() {
             animate={{ opacity: 1 }}
             transition={{ delay: 1 }}
           >
-            <p className="text-white/40 text-sm mb-4">Want to see your own future?</p>
+            <p className="text-white/40 text-sm mb-4">Want your own ReplaceProof roadmap?</p>
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-3 mb-3">
+              <button
+                onClick={handleContinue}
+                disabled={isContinuing}
+                className="px-6 py-2.5 rounded-full bg-cyan-500/10 backdrop-blur border border-cyan-400/25 text-cyan-200 text-sm font-medium hover:bg-cyan-500/15 transition-all cursor-pointer disabled:opacity-60"
+              >
+                {isContinuing ? "Opening..." : "Continue this simulation"}
+              </button>
+            </div>
             <button
               onClick={() => router.push("/")}
               className="px-8 py-3 rounded-full bg-white/10 backdrop-blur border border-white/15 text-white/80 text-base font-medium hover:bg-white/15 transition-all cursor-pointer"
             >
-              Simulate your future →
+              Start your assessment -&gt;
             </button>
           </motion.div>
         </div>

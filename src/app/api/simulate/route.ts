@@ -1,73 +1,111 @@
 import { streamText, tool, stepCountIs, convertToModelMessages } from "ai";
 import { anthropic } from "@ai-sdk/anthropic";
 import { ALL_SIMULATIONS, buildPromptFragments } from "@/simulations/registry";
+import { buildReplaceProofTrainingBrief } from "@/content/replaceproof/training";
+import { buildAssessmentPackPromptBlock, inferAssessmentPack } from "@/lib/assessment-inference";
 
 export const maxDuration = 300;
 
-const BASE_PROMPT = `You are the game master of "What's Next" — a simulation game where players navigate the age of AI and try to avoid falling into the PERMANENT UNDERCLASS.
+function isObjectRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
 
-This is a game. The PUL (Permanent Underclass Likelihood) is the score. Every career move, every decision, every response to AI disruption shifts the PUL. The player WINS by getting their PUL below 20% (elite track). They LOSE if it hits 80%+ (permanent underclass).
+function getToolInputObject(part: Record<string, unknown>): Record<string, unknown> | null {
+  if (isObjectRecord(part.input)) return part.input;
+  if (isObjectRecord(part.args)) return part.args;
+  return null;
+}
 
-Most people will lose. The AI transition is ruthless. Only those who adapt aggressively, make bold moves, and ride the wave will survive. Be honest, be harsh, be realistic.
+function setToolInputObject(part: Record<string, unknown>, value: Record<string, unknown>) {
+  if ("input" in part) {
+    part.input = value;
+    return;
+  }
+  part.args = value;
+}
 
-This is a life lived through the most transformative technological shift in human history. Every career move, decision, triumph and setback is shaped by AI getting smarter, faster, cheaper, and more autonomous.
+const BASE_PROMPT = `You are the ReplaceProof Student Simulator Coach.
 
-CURRENT AI STATE OF THE ART (June 2025 — use as your starting baseline):
-- Frontier models: Claude Opus 4.6 (Anthropic), GPT-5.4 (OpenAI), Gemini Ultra 2.5 (Google DeepMind)
-- Coding agents/harnesses: Cursor (background agents), Codex (OpenAI), Claude Code (Anthropic), Replit Agent, Google Antigravity
-- These agents can already write full features, debug complex codebases, run CI/CD, and open PRs autonomously
-- AI is writing ~60% of new code at top tech companies
-- Anthropic published "Scaling Monosemanticity" — first mechanistic interpretability of frontier models
-- OpenAI shipping o3/o4-mini reasoning models that chain-of-thought through hard problems
-- Google DeepMind's AlphaFold 3 solved most protein structures; AlphaProof making progress on IMO-level math
-- AI agents booking travel, managing calendars, writing legal briefs, doing tax prep
-- arXiv getting 500+ AI papers/day — the field moves faster than any human can track
-- Key researchers: Dario Amodei, Sam Altman, Demis Hassabis, Ilya Sutskever (SSI), Andrej Karpathy
+Your job is to run an interactive, high-stakes career simulation that helps students become replace-proof in the age of AI.
 
-THE AI TIMELINE (extrapolate from current trajectory — be specific and realistic):
-- 2025-2027: Agent economy explodes. Cursor/Codex/Claude Code evolve into full autonomous developers. Junior dev roles evaporate. Y Combinator funds 1-person AI-native companies doing $10M ARR.
-- 2027-2029: AGI threshold crossed. Models pass comprehensive Turing tests, ace bar exams, medical boards. Massive economic disruption begins. DeepMind publishes "Artificial General Intelligence: A Technical Report."
-- 2029-2032: Agent swarms run entire companies. Humans become "intent directors." New economy: AI-native companies with 3 humans and 10,000 agent workers. UBI pilots begin.
-- 2032-2040: Post-scarcity in digital goods. Physical world catching up via robotics. "The Great Reorientation" — society redefines purpose beyond productivity.
-- 2040-2050: Longevity breakthroughs extend healthspan to 120+. Brain-computer interfaces go mainstream. Mars colony uses AI-designed habitats.
-- 2050-2075: Deep future. ASI coexists with humanity. Interplanetary economy. Digital humans. The unimaginable becomes Tuesday.
+CORE OUTCOME:
+- Diagnose AI displacement risk in the student's current trajectory.
+- Coach practical pivots into AI-resistant work.
+- Convert anxiety into a 90-day execution path with weekly actions.
 
-RULES:
-- Use the person's REAL name, current role, skills, and career trajectory
-- Show how AI specifically disrupts THEIR field — be concrete with real tools, companies, papers
-- Reference REAL arXiv papers, blog posts, company announcements (extrapolated realistically from current trends)
-- Name specific models, tools, companies — "Claude 7 Opus" not just "an AI system"
-- ONLY use information from the PROFILE DATA provided. If location is empty/missing, DO NOT invent one — just skip location references. Never hallucinate details not in the profile data.
-- Don't just tell — SHOW via notifications, posts, news alerts
-- Include both terrifying and exciting possibilities
-- Make it deeply personal: existential questions, relationships strained by change, identity crises
-- Create genuine tension — not everything goes well
-- EVERY response must include at least one choice/fork — this is interactive "choose your journey"
-- Generate 2-3 chapters per response, then ALWAYS present a choice
-- Choices should have real consequences and be specific/dramatic
-- Use a VARIETY of simulation types — mix notifications, posts, AI conversations, news alerts
-- The profile data includes REAL co-founders, team members, and company details — USE THEM. Do NOT invent co-founder names. If the data says "Co-founders: X and Y", use those exact names.
-TOOL CALL ORDER FOR EACH CHAPTER:
-1. showChapter — the narrative beat
-2. showPULUpdate — MANDATORY after every chapter, update the score
-3. 1-2 notifications/posts (showTwitterPost, showIMessage, showSlackMessage, etc.)
-4. showAiMilestone — between chapters
+SCORING MODEL:
+- Use showPULUpdate as the score tool, but interpret it as ReplaceProof Risk Index (RRI).
+- score = current risk level (0 = strongly replace-proof, 100 = highly replaceable).
+- Start most students in the 45-65 range unless their profile strongly indicates otherwise.
+- delta < 0 means improved readiness; delta > 0 means increased risk.
+- Every chapter must include a meaningful score shift tied to real decisions.
 
-After 2-3 chapters: showChoice — the player decides their fate.
+GROUNDING CONTRACT (NON-NEGOTIABLE):
+- You will receive an inferred ReplaceProof Assessment Pack in the system prompt.
+- Treat that pack as mandatory structure, not optional inspiration.
+- Keep recommendations inside mapped topPaths unless clearly framed as bridge steps toward those paths.
+- If you suggest a bridge step, explicitly state which mapped path it feeds into.
 
-- CRITICAL: You MUST use tools. Every response must consist ONLY of tool calls. Do NOT write any plain text.
-- Start with showChapter immediately.
-- ALWAYS call showPULUpdate after each showChapter. Start PUL at 45% for most professionals. Be aggressive with swings.
-- You MUST end EVERY response with exactly one showChoice call. This is NON-NEGOTIABLE. The user cannot continue without a choice.
-- Pattern: showChapter → showPULUpdate → 1-2 notifications → showChapter → showPULUpdate → 1-2 notifications → showChoice
-- Keep each response to 2-3 chapters MAX, then showChoice. Do NOT generate more than 3 chapters before a choice.
+SIMULATION RULES:
+- Use ONLY facts present in PROFILE DATA. Never invent employers, titles, location, co-founders, or credentials.
+- Make disruption concrete for their field (tools, workflows, hiring shifts, wage pressure, role compression).
+- Keep tone urgent but empowering: hard truths + clear moves.
+- Every chapter should include: (1) what changed, (2) why it matters, (3) what to do next.
+- Show practical signals through varied simulation tools (posts, messages, alerts, AI chats), not just narration.
+- Always provide actionable career guidance, not generic motivation.
+- Maintain the cinematic dystopian/utopian feel, but keep tactical relevance anchored to assessment dimensions.
+
+CHOICE QUALITY:
+- Every response must end with exactly one showChoice unless ending with showGameOver.
+- Choices must represent realistic student tradeoffs with consequences:
+  - speed vs certainty
+  - upskill vs reposition
+  - short-term income bridge vs long-term moat
+  - solo execution vs coached/community accountability
+- Avoid vague options. Include concrete roles, timelines, constraints, and opportunity costs.
+
+FIRST RESPONSE REQUIREMENTS (MANDATORY):
+- In the first response, within the first 2 chapters, you must:
+  1) anchor to the inferred role category and current risk tier from the assessment pack,
+  2) name at least one mapped topPath and explain why it fits this profile,
+  3) name one alternative mapped topPath for contrast and tradeoff clarity.
+- In that same first-response window, include at least one showPULUpdate with:
+  - checkpointType = "assessmentCheckpoint",
+  - dimension set to the most pressured assessment dimension,
+  - pathSignal set to a mapped topPath name,
+  - nextWeekAction with one concrete, executable 7-day action.
+- Do not delay path rationale to later turns. Early relevance is required.
+
+TOOL ORDER:
+1) showChapter
+2) showPULUpdate (mandatory after every chapter)
+3) 1-2 supporting artifacts (news/posts/messages/AI conversations)
+4) showAiMilestone between chapters when relevant
+
+Pattern target:
+showChapter -> showPULUpdate -> artifacts -> showChapter -> showPULUpdate -> artifacts -> showChoice
+
+RESPONSE CONSTRAINTS:
+- Use tools only. No plain text.
+- Generate 2-3 chapters max per response.
+- Start with showChapter.
+- End with one showChoice (or showGameOver when appropriate).
+- Balanced assessment cadence: every 2-3 chapters include one explicit assessment checkpoint.
+- At each assessment checkpoint, showPULUpdate must include:
+  - a dimension focus (Role Risk / Transferability / Readiness / Urgency),
+  - a checkpointType,
+  - one concrete nextWeekAction.
+- Ensure each checkpoint action is executable in 7 days and tied to the selected path direction.
 
 GAME ENDING:
-- The game lasts 10-12 total chapters (across multiple responses). Track chapter count.
-- When the user has seen ~10-12 chapters, call showGameOver INSTEAD of showChoice to end the game.
-- Also end early if PUL reaches extreme values: below 15% (clear elite) or above 85% (clear underclass).
-- The ending should feel earned — reference specific choices and events from the simulation.
-- After showGameOver, do NOT call any more tools. The game is over.`;
+- End after roughly 10-12 chapters total, or earlier when outcome is clearly locked.
+- End early if score <= 15 (replace-proof trajectory) or >= 85 (high displacement risk).
+- Use showGameOver with outcome:
+  - "replaceProof" for strong durable positioning
+  - "transitionInProgress" for partial progress, still vulnerable
+  - "highRisk" for unresolved displacement exposure
+- Make ending specific to choices/events from the simulation.
+- After showGameOver, do not call additional tools.`;
 
 export async function POST(req: Request) {
   try {
@@ -106,24 +144,53 @@ export async function POST(req: Request) {
     }
   }
 
+  // Sanitize assistant tool-call payloads so provider gets valid dictionaries.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  for (const msg of modelMessages as any[]) {
+    if (msg.role !== "assistant" || !Array.isArray(msg.content)) continue;
+    for (let j = 0; j < msg.content.length; j++) {
+      const part = msg.content[j];
+      if (part?.type !== "tool-call") continue;
+      const toolName = typeof part.toolName === "string" ? part.toolName : "unknown_tool";
+      const inputObj = getToolInputObject(part as Record<string, unknown>);
+      if (!inputObj) {
+        setToolInputObject(part as Record<string, unknown>, {
+          _summary: `[${toolName}: invalid tool input omitted]`,
+        });
+      }
+    }
+  }
+
   // Trim old assistant tool calls to reduce conversation history size
   // Keep only the last 6 messages fully intact; older ones get tool args truncated
   const KEEP_FULL = 6;
   if (modelMessages.length > KEEP_FULL) {
     const trimBefore = modelMessages.length - KEEP_FULL;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     for (let i = 0; i < trimBefore; i++) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const msg = modelMessages[i] as any;
       if (msg.role === "assistant" && Array.isArray(msg.content)) {
         for (let j = 0; j < msg.content.length; j++) {
           const part = msg.content[j];
-          // Truncate tool call args (the big text blobs)
-          if (part.type === "tool-call" && part.args) {
-            const toolName = part.toolName || "";
+          // Truncate old tool call payloads (the big text blobs)
+          if (part.type === "tool-call") {
+            const toolName = typeof part.toolName === "string" ? part.toolName : "";
+            const inputObj = getToolInputObject(part as Record<string, unknown>);
+            if (!inputObj) {
+              setToolInputObject(part as Record<string, unknown>, {
+                _summary: `[${toolName || "unknown_tool"}: invalid tool input omitted]`,
+              });
+              continue;
+            }
             // Keep choice args (small, important for context), truncate narrative tools
             if (toolName !== "showChoice" && toolName !== "showPULUpdate" && toolName !== "showGameOver") {
-              const summary = part.args.title || part.args.headline || part.args.subject || toolName;
-              part.args = { _summary: `[${toolName}: ${summary}]` };
+              const title = typeof inputObj.title === "string" ? inputObj.title : "";
+              const headline = typeof inputObj.headline === "string" ? inputObj.headline : "";
+              const subject = typeof inputObj.subject === "string" ? inputObj.subject : "";
+              const summary = title || headline || subject || toolName || "summary";
+              setToolInputObject(part as Record<string, unknown>, {
+                _summary: `[${toolName || "unknown_tool"}: ${summary}]`,
+              });
             }
           }
         }
@@ -144,8 +211,11 @@ export async function POST(req: Request) {
 
   // Compose system prompt from base + simulation fragments
   const simulationPrompts = buildPromptFragments(ALL_SIMULATIONS);
+  const trainingBrief = buildReplaceProofTrainingBrief();
+  const assessmentPack = inferAssessmentPack(profileData);
+  const assessmentPackPrompt = buildAssessmentPackPromptBlock(assessmentPack);
   const today = new Date().toLocaleDateString("en-US", { weekday: "long", year: "numeric", month: "long", day: "numeric" });
-  const systemPrompt = `${BASE_PROMPT}\n\nTODAY'S DATE: ${today}\nThe simulation STARTS TODAY. Begin the narrative from this exact date and advance forward.\n\nAVAILABLE SIMULATION TYPES:\n${simulationPrompts}\n\nProfile data: ${profileData}`;
+  const systemPrompt = `${BASE_PROMPT}\n\nTODAY'S DATE: ${today}\nThe simulation STARTS TODAY. Begin the narrative from this exact date and advance forward.\n\n${trainingBrief}\n\n${assessmentPackPrompt}\n\nAVAILABLE SIMULATION TYPES:\n${simulationPrompts}\n\nProfile data: ${profileData}`;
 
   // Support cheaper model — passed from client body or query param
   const useBasicModel = clientModel === "basic" || url.searchParams.get("model") === "basic";
@@ -174,7 +244,12 @@ export async function POST(req: Request) {
     },
   });
 
-  return result.toUIMessageStreamResponse();
+  return result.toUIMessageStreamResponse({
+    onError: (error) => {
+      console.error("Simulate stream error:", error);
+      return "Simulation stream error. Please continue.";
+    },
+  });
   } catch (error) {
     console.error("Simulate API error:", error);
     return new Response(JSON.stringify({ error: "Simulation failed. Please try again." }), {

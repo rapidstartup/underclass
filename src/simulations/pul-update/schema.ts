@@ -3,10 +3,14 @@ import type { SimulationSchema } from "../types";
 
 export const schema: SimulationSchema = {
   toolName: "showPULUpdate",
-  description: "Update the PUL (Permanent Underclass Likelihood) score. Call this after EVERY chapter to reflect how the person's choices and circumstances affect their odds. This is the core game mechanic — every decision, every AI milestone, every career move shifts the PUL.",
+  description: "Update the ReplaceProof Risk Index (RRI) after every chapter. Keep the existing tool name for compatibility, but treat the score as displacement risk where lower is better and higher is more vulnerable.",
   inputSchema: z.object({
-    score: z.number().min(0).max(100).describe("Current PUL percentage (0 = certain elite, 100 = certain underclass). Start around 40-50 for most people."),
-    delta: z.number().describe("How much the PUL changed from the last update. Positive = worse, negative = better. e.g. -8 means improved by 8 points."),
-    reason: z.string().describe("Brief explanation of why the PUL changed, e.g. 'Pivoted to AI safety research early' or 'Ignored the agent economy transition'"),
+    score: z.number().min(0).max(100).describe("Current ReplaceProof Risk Index (0 = strongly replace-proof, 100 = highly replaceable)."),
+    delta: z.number().describe("Risk shift from last update. Positive = higher risk, negative = lower risk."),
+    reason: z.string().describe("Short coaching explanation for the change, tied to concrete choices or market shifts."),
+    dimension: z.enum(["roleRisk", "transferability", "readiness", "urgency"]).optional().describe("Optional assessment dimension focus for checkpoint beats."),
+    checkpointType: z.enum(["chapterBeat", "assessmentCheckpoint", "pathSignal"]).optional().describe("Optional checkpoint type. Use assessmentCheckpoint every 2-3 chapters."),
+    pathSignal: z.string().optional().describe("Optional mapped path anchor, e.g. 'Content Strategist'."),
+    nextWeekAction: z.string().optional().describe("Optional concrete 7-day action tied to this checkpoint."),
   }),
 };

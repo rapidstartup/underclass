@@ -34,6 +34,89 @@ export interface PersonProfile {
   sources: string[];
 }
 
+function stripMarkdownLinks(text: string): string {
+  return text.replace(/\[([^\]]+)\]\([^)]+\)/g, "$1");
+}
+
+function extractLikelyPersonName(text: string): string {
+  if (!text) return "";
+  const cleaned = stripMarkdownLinks(text).replace(/https?:\/\/\S+/g, " ").trim();
+  const firstLine = cleaned.split(/\n/)[0].trim();
+  if (/^[A-Z][a-z]+(?:\s+[A-Z][a-z]+){1,3}$/.test(firstLine)) return firstLine;
+
+  const afterIsMatch = cleaned.match(/(?:\bis\b|\bname is\b|:)\s*([A-Z][a-z]+(?:\s+[A-Z][a-z]+){1,3})\b/);
+  if (afterIsMatch?.[1]) return afterIsMatch[1].trim();
+
+  const sentenceStart = cleaned.split(/[.!?]/)[0].trim();
+  const candidates = sentenceStart.match(/[A-Z][a-z]+(?:\s+[A-Z][a-z]+){1,3}/g) || [];
+  const stopWords = new Set(["The", "This", "That", "Who", "What", "Return", "Only", "Full", "Name", "On", "Twitter"]);
+  for (const candidate of candidates) {
+    const firstToken = candidate.split(/\s+/)[0];
+    if (!stopWords.has(firstToken)) return candidate.trim();
+  }
+  return "";
+}
+
+function extractLikelyCompanyName(text: string): string {
+  if (!text) return "";
+  const cleaned = stripMarkdownLinks(text).replace(/https?:\/\/\S+/g, " ").replace(/\s+/g, " ").trim();
+
+  const rolePattern = /(?:co-?founder|founder|ceo|cto|coo|general partner|partner|president|chair(?:man)?|head)\b(?:[^.!?\n]{0,90}?)\b(?:at|of)\s+([A-Z][A-Za-z0-9&.' -]{2,80}?)(?:\s*(?:\(|,|\.|;|$))/i;
+  const roleMatch = cleaned.match(rolePattern);
+  if (roleMatch?.[1]) {
+    const value = roleMatch[1].trim();
+    if (/^a16z$/i.test(value)) return "Andreessen Horowitz";
+    return value;
+  }
+
+  const knownCompanyMatch = cleaned.match(/\b(Andreessen Horowitz|a16z|OpenAI|Anthropic|Google|Meta|Microsoft|Tesla|Nvidia)\b/i);
+  if (knownCompanyMatch?.[1]) {
+    return /^a16z$/i.test(knownCompanyMatch[1]) ? "Andreessen Horowitz" : knownCompanyMatch[1];
+  }
+
+  return "";
+}
+
+function personNameLikelyMatches(expectedName: string, title: string, text: string): boolean {
+  if (!expectedName) return true;
+  const titleLower = title.toLowerCase();
+  const headerText = text.split("\n").slice(0, 5).join(" ").toLowerCase();
+  const tokens = expectedName
+    .toLowerCase()
+    .split(/\s+/)
+    .map((t) => t.trim())
+    .filter((t) => t.length > 1);
+
+  const titleMatches = tokens.every((t) => titleLower.includes(t));
+  if (titleMatches) return true;
+
+  // Fallback only to very early profile text (header), not full body where other names may appear.
+  return tokens.every((t) => headerText.includes(t));
+}
+
+function companyLikelyMatches(expectedCompany: string, title: string, text: string): boolean {
+  if (!expectedCompany) return true;
+  const haystack = `${title} ${text}`.toLowerCase();
+  const normalized = expectedCompany.toLowerCase();
+  const variants = new Set<string>([normalized]);
+  if (normalized.includes("andreessen horowitz")) variants.add("a16z");
+  if (normalized === "a16z") variants.add("andreessen horowitz");
+  return Array.from(variants).some((v) => haystack.includes(v));
+}
+
+async function verifyLinkedInCandidate(
+  apiKey: string,
+  linkedinUrl: string,
+  expectedName: string,
+  expectedCompany: string
+): Promise<boolean> {
+  const verification = await exaGetContents(apiKey, [linkedinUrl]);
+  const verifiedTitle = verification[0]?.title || "";
+  const verifiedText = verification[0]?.text || "";
+  return personNameLikelyMatches(expectedName, verifiedTitle, verifiedText) &&
+    companyLikelyMatches(expectedCompany, verifiedTitle, verifiedText);
+}
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type ExaResult = { url?: string; title?: string; text?: string; summary?: string; entities?: any[]; image?: string };
 
@@ -519,18 +602,20 @@ export async function findPersonByHandle(handle: string): Promise<PersonProfile>
   if (xHandleMatch) {
     const xHandle = xHandleMatch[1];
     console.log(`[exa] Detected X handle: @${xHandle}, using Exa Answer to find LinkedIn`);
-    
-    const answer = await exaAnswer(apiKey, 
-      `Who is @${xHandle} on X/Twitter? What is their full name, current role/company, and LinkedIn profile URL?`
-    );
-    
-    // Extract the person's name and company from the answer
-    // Match full names including patterns like "McCurrach", "O'Brien", multi-word
-    const nameMatch = answer.match(/(?:is\s+|name is\s+)([A-Z][a-z]+ (?:[A-Z](?:[a-z']+|[a-z]*[A-Z][a-z]+) ?){1,3})/);
-    const personName = nameMatch?.[1] || "";
-    const companyMatch = answer.match(/(?:CEO|founder|co-founder|CTO|COO)(?:\s+(?:of|at)\s+)([A-Za-z][A-Za-z\s]+?)(?:\s*[\.,;\(\[]|$)/i);
-    const companyName = companyMatch?.[1]?.trim() || "";
-    
+
+    const [answer, nameOnlyAnswer, companyOnlyAnswer] = await Promise.all([
+      exaAnswer(apiKey, `Who is @${xHandle} on X/Twitter? What is their full name, current role/company, and LinkedIn profile URL?`),
+      exaAnswer(apiKey, `What is the full name of @${xHandle} on X/Twitter? Return only the person name.`),
+      exaAnswer(apiKey, `What company is @${xHandle} on X/Twitter best known for? Return only company/organization name.`),
+    ]);
+
+    const explicitName = extractLikelyPersonName(nameOnlyAnswer);
+    const fallbackName = extractLikelyPersonName(answer);
+    const personName = explicitName || fallbackName;
+    const companyName =
+      extractLikelyCompanyName(companyOnlyAnswer) ||
+      extractLikelyCompanyName(answer);
+
     console.log(`[exa] Exa Answer identified: ${personName} (${companyName})`);
 
     // Extract LinkedIn URL from the answer
@@ -538,25 +623,13 @@ export async function findPersonByHandle(handle: string): Promise<PersonProfile>
     
     if (linkedinMatch) {
       const linkedinUrl = `https://www.linkedin.com/in/${linkedinMatch[1]}`;
-      
-      // VERIFY the LinkedIn profile matches — Exa Answer can hallucinate URLs
-      const verification = await exaGetContents(apiKey, [linkedinUrl]);
-      const verifiedTitle = verification[0]?.title || "";
-      const verifiedText = verification[0]?.text || "";
-      
-      // Check if the LinkedIn profile matches the person/company from the answer
-      // Company is the strongest signal — names can be ambiguous (two "Garrett Scott"s)
-      const titleLower = verifiedTitle.toLowerCase();
-      const textLower = verifiedText.toLowerCase().slice(0, 500);
-      const companyMatches = companyName && (titleLower.includes(companyName.toLowerCase()) || textLower.includes(companyName.toLowerCase()));
-      
-      // If we have a company name from the answer, REQUIRE company match
-      // Name-only matching fails for common names (e.g. "Garrett Scott" matches multiple people)
-      if (companyMatches || (!companyName && verifiedTitle)) {
-        console.log(`[exa] LinkedIn verified: ${verifiedTitle}`);
+
+      // VERIFY the LinkedIn profile matches person/company — Exa Answer can hallucinate URLs.
+      if (await verifyLinkedInCandidate(apiKey, linkedinUrl, personName, companyName)) {
+        console.log(`[exa] LinkedIn verified: ${linkedinUrl}`);
         return researchPerson(linkedinUrl);
       } else {
-        console.log(`[exa] LinkedIn MISMATCH: "${verifiedTitle}" doesn't match "${personName} / ${companyName}", searching by name instead`);
+        console.log(`[exa] LinkedIn mismatch for @${xHandle}, searching by inferred name/company instead`);
       }
     }
     
@@ -596,10 +669,12 @@ export async function findPersonByHandle(handle: string): Promise<PersonProfile>
         contents: { text: { maxCharacters: 500 } },
       });
       
-      const linkedinResult = nameResults.find((r) => r.url?.includes("linkedin.com/in/"));
-      if (linkedinResult?.url) {
-        console.log(`[exa] Found LinkedIn via name search: ${linkedinResult.url}`);
-        return researchPerson(linkedinResult.url);
+      for (const result of nameResults) {
+        if (!result.url?.includes("linkedin.com/in/")) continue;
+        if (await verifyLinkedInCandidate(apiKey, result.url, personName, companyName)) {
+          console.log(`[exa] Found verified LinkedIn via name search: ${result.url}`);
+          return researchPerson(result.url);
+        }
       }
       
       // Try people category
@@ -611,11 +686,29 @@ export async function findPersonByHandle(handle: string): Promise<PersonProfile>
         contents: { text: { maxCharacters: 2000 } },
       });
       
-      const peopleLi = peopleResults.find((r) => r.url?.includes("linkedin.com/in/"));
-      if (peopleLi?.url) {
-        console.log(`[exa] Found LinkedIn via people search: ${peopleLi.url}`);
-        return researchPerson(peopleLi.url);
+      for (const result of peopleResults) {
+        if (!result.url?.includes("linkedin.com/in/")) continue;
+        if (await verifyLinkedInCandidate(apiKey, result.url, personName, companyName)) {
+          console.log(`[exa] Found verified LinkedIn via people search: ${result.url}`);
+          return researchPerson(result.url);
+        }
       }
+
+      // If we can't confidently map to LinkedIn, return an identity-safe profile
+      // rather than accidentally returning a different person with a similar name.
+      return {
+        name: personName,
+        headline: companyName ? `${personName} | ${companyName}` : `${personName}`,
+        location: "",
+        summary: answer.slice(0, 500),
+        profileImageUrl: "",
+        workHistory: [],
+        education: [],
+        companies: [],
+        narrativeContext: answer || `X handle @${xHandle}`,
+        linkedinUrl: "",
+        sources: [],
+      };
     }
   }
 

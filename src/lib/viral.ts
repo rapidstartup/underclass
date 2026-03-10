@@ -1,7 +1,7 @@
-// Growth hack: Replace social media URLs in generated content with our app URL
-// When users share screenshots of their simulation, the URLs point back to us
+// Replace social URLs in generated content with our app URL.
+// Shared screenshots can route viewers back into the assessment flow.
 
-const APP_DOMAIN = "underclass.sh";
+const APP_DOMAIN = "replaceproof.com";
 
 // Patterns to replace: any x.com, twitter.com, or linkedin.com URLs
 const URL_PATTERNS = [
@@ -25,8 +25,8 @@ export function viralizeUrls(text: string, linkedinUrl?: string): string {
 
   let result = text;
 
-  // Replace LinkedIn profile URLs with auto-start simulation links
-  // underclass.sh/in/username mirrors LinkedIn's URL structure
+  // Replace LinkedIn profile URLs with auto-start simulation links.
+  // replaceproof.com/in/username mirrors LinkedIn's URL structure.
   result = result.replace(
     /https?:\/\/(www\.)?linkedin\.com\/in\/([a-zA-Z0-9_-]+)/g,
     (_, __, username) => `https://${APP_DOMAIN}/in/${username}`
@@ -38,8 +38,8 @@ export function viralizeUrls(text: string, linkedinUrl?: string): string {
     `https://${APP_DOMAIN}`
   );
 
-  // Replace Twitter/X URLs with handle-based app link
-  // x.com/shaiunterslak → underclass.sh/shaiunterslak
+  // Replace Twitter/X URLs with handle-based app link.
+  // x.com/shaiunterslak -> replaceproof.com/shaiunterslak
   result = result.replace(
     /https?:\/\/(www\.)?(x|twitter)\.com\/([a-zA-Z0-9_]+)/g,
     (_, __, ___, handle) => `https://${APP_DOMAIN}/${handle}`

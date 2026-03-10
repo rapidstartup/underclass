@@ -1,12 +1,12 @@
-# Underclass
+# ReplaceProof Student Simulator
 
-**Simulate your future through the age of AI.**
+**Assess AI career risk and build a 90-day transition path.**
 
-Paste a LinkedIn URL → the app researches you via [Exa](https://exa.ai), then streams an interactive narrative showing how AI will reshape your career over the next 50 years. Platform-accurate notifications (tweets, iMessages, Slack, LinkedIn posts), a PUL score tracking your odds, and branching choices that shape your fate.
+Paste a LinkedIn URL -> the app researches you via [Exa](https://exa.ai), then streams an interactive ReplaceProof simulation that shows how AI pressure can reshape your trajectory. Platform-accurate notifications (tweets, iMessages, Slack, LinkedIn posts), a risk index tracking your exposure, and branching choices that shape your transition path.
 
-**[Try it →](https://whats-next-inky.vercel.app)**
+**[Try it ->](https://replaceproof.com)**
 
-![What's Next](https://img.shields.io/badge/Next.js-16-black?logo=next.js) ![AI SDK](https://img.shields.io/badge/AI_SDK-v6-blue) ![License](https://img.shields.io/badge/license-MIT-green)
+![ReplaceProof](https://img.shields.io/badge/Next.js-16-black?logo=next.js) ![AI SDK](https://img.shields.io/badge/AI_SDK-v6-blue) ![License](https://img.shields.io/badge/license-MIT-green)
 
 ---
 
@@ -14,7 +14,7 @@ Paste a LinkedIn URL → the app researches you via [Exa](https://exa.ai), then 
 
 1. **Research** — Exa API pulls your career history, company data, co-founders, education, and recent news
 2. **Simulate** — Claude streams an interactive narrative using tool calls that render as platform-accurate UI components
-3. **Play** — Your PUL (Permanent Underclass Likelihood) score shifts with every chapter. Make choices that determine if you join the elite that survives AI — or fall into the permanent underclass
+3. **Play** — Your ReplaceProof Risk Index shifts with every chapter. Make choices that determine whether you build a durable role in the AI economy.
 4. **Share** — Save your simulation and share the link
 
 ## Stack
@@ -25,13 +25,13 @@ Paste a LinkedIn URL → the app researches you via [Exa](https://exa.ai), then 
 - **Exa API** — person/company research
 - **Framer Motion** — animations
 - **Tailwind v4** — styling
-- **Neon Postgres** — session persistence (optional)
+- **Postgres (Supabase/Neon/other)** — session persistence (optional)
 
 ## Getting Started
 
 ```bash
-git clone https://github.com/shaiunterslak/whats-next.git
-cd whats-next
+git clone https://github.com/shaiunterslak/underclass.git
+cd underclass
 npm install
 ```
 
@@ -41,9 +41,20 @@ Create `.env.local`:
 ANTHROPIC_API_KEY=sk-ant-...
 EXA_API_KEY=...
 
-# Optional — enables shareable sessions
-POSTGRES_URL=postgresql://...
+# Supabase (required for sessions + member unlocks)
+NEXT_PUBLIC_SUPABASE_URL=https://<project-ref>.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=<anon-key>
+SUPABASE_SERVICE_ROLE_KEY=<service-role-key>
+
+# Optional member auth/webhook integrations
+MEMBER_PASSWORD_VERIFY_URL=https://<your-auth-api>/verify-password
+MEMBER_KEY_VERIFY_URL=https://<your-auth-api>/verify-membership-key
+MEMBER_AUTH_SHARED_SECRET=<shared-secret-for-external-auth-calls>
+MEMBER_ACCESS_COOKIE_SECRET=<cookie-signing-secret>
+MEMBER_WEBHOOK_SECRET=<signed-webhook-secret>
 ```
+
+Apply Supabase SQL migrations before running the app.
 
 ```bash
 npm run dev
@@ -51,9 +62,37 @@ npm run dev
 
 Open [http://localhost:3000](http://localhost:3000).
 
+## Session Data Migration (Old DB -> Supabase)
+
+Use the one-time migration script to backfill existing `sessions` rows while preserving IDs (share URLs remain valid).
+
+```bash
+# Dry-run first (no writes)
+node scripts/migrate-sessions-to-supabase.mjs --dry-run
+
+# Real migration (idempotent upsert by id)
+node scripts/migrate-sessions-to-supabase.mjs
+```
+
+Environment used by the script:
+
+- `SOURCE_DATABASE_URL` (or `POSTGRES_URL` / `DATABASE_URL`) -> current/source sessions DB
+- `TARGET_SUPABASE_URL` (or `NEXT_PUBLIC_SUPABASE_URL`) -> destination Supabase URL
+- `TARGET_SUPABASE_SERVICE_ROLE_KEY` (or `SUPABASE_SERVICE_ROLE_KEY`) -> destination service role key
+- `SESSIONS_MIGRATION_BATCH_SIZE` (optional, default `250`)
+- `SESSIONS_MIGRATION_SAMPLE_COUNT` (optional, default `20`)
+- `SESSIONS_VERIFY_IDS` (optional comma-separated session IDs to verify)
+
+Recommended runbook:
+
+1. Run `--dry-run` and verify source/target counts.
+2. Run real migration and confirm sample checksum mismatches are `0`.
+3. Smoke test a few `/s/{id}` links from historical sessions.
+4. Keep old source DB readable until validation completes.
+
 ## Plugin Architecture
 
-Every UI element in the simulation — tweets, iMessages, Slack messages, news alerts, the PUL score — is a **simulation plugin**. The system is designed so anyone can add new simulation types via a PR.
+Every UI element in the simulation — tweets, iMessages, Slack messages, news alerts, the risk index — is a **simulation plugin**. The system is designed so anyone can add new simulation types via a PR.
 
 ### Existing Plugins
 
@@ -61,7 +100,7 @@ Every UI element in the simulation — tweets, iMessages, Slack messages, news a
 |--------|-----------|-------------|
 | `chapter` | `showChapter` | Narrative chapter with year/title |
 | `choice` | `showChoice` | Branching choice (Path A / Path B) |
-| `pul-update` | `showPULUpdate` | PUL score update with delta |
+| `pul-update` | `showPULUpdate` | ReplaceProof Risk Index update with delta |
 | `ai-milestone` | `showAiMilestone` | AI progress milestone |
 | `twitter-post` | `showTwitterPost` | X/Twitter dark mode tweet |
 | `imessage` | `showIMessage` | iMessage blue bubble |

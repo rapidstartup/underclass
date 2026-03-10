@@ -1,4 +1,4 @@
-# What's Next — Simulation Plugin Architecture
+# ReplaceProof Student Simulator — Plugin Architecture
 
 ## Core Concept
 

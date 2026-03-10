@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 
 // Catch paths like /shaiunterslak/status/203082... or /shaiunterslak/anything
-// These come from viral URL replacement (x.com/user/status/123 → underclass.sh/user/status/123)
+// These come from viral URL replacement (x.com/user/status/123 -> replaceproof.com/user/status/123)
 // Strip everything after the handle and start a simulation
 export default async function HandleSubpathRedirect({
   params,

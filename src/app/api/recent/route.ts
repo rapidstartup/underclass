@@ -1,9 +1,10 @@
 import { NextResponse } from "next/server";
 import { getRecentSessions, initDb } from "@/lib/db";
+import { hasSupabaseConfig } from "@/lib/supabase-server";
 
 export async function GET() {
   try {
-    if (!process.env.POSTGRES_URL && !process.env.DATABASE_URL) {
+    if (!hasSupabaseConfig()) {
       return NextResponse.json({ sessions: [] });
     }
 

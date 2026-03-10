@@ -1,14 +1,24 @@
 "use client";
 
-import { memo, type ElementType, type HTMLAttributes } from "react";
+import { memo, type ElementType } from "react";
 import { motion } from "framer-motion";
 
-interface ShimmerProps extends HTMLAttributes<HTMLElement> {
+interface ShimmerProps {
   children: string;
   as?: ElementType;
   duration?: number;
   spread?: number;
+  className?: string;
 }
+
+const MOTION_TAGS = {
+  p: motion.p,
+  span: motion.span,
+  div: motion.div,
+  h1: motion.h1,
+  h2: motion.h2,
+  h3: motion.h3,
+} as const;
 
 export const Shimmer = memo(function Shimmer({
   children,
@@ -16,11 +26,13 @@ export const Shimmer = memo(function Shimmer({
   className = "",
   duration = 2,
   spread = 2,
-  ...props
 }: ShimmerProps) {
-  const MotionComponent = motion.create(Component);
   const charLength = children.length;
   const spreadCalc = charLength * spread;
+  const MotionComponent =
+    typeof Component === "string" && Component in MOTION_TAGS
+      ? MOTION_TAGS[Component as keyof typeof MOTION_TAGS]
+      : motion.p;
 
   return (
     <MotionComponent
@@ -43,7 +55,6 @@ export const Shimmer = memo(function Shimmer({
         ease: "linear",
         repeat: Infinity,
       }}
-      {...props}
     >
       {children}
     </MotionComponent>

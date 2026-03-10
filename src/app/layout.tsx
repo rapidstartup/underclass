@@ -9,34 +9,34 @@ const inter = Inter({
   variable: "--font-inter",
 });
 
-const APP_URL = "https://underclass.sh";
+const APP_URL = "https://replaceproof.com";
 
 export const metadata: Metadata = {
-  title: "underclass — will you survive the age of AI?",
+  title: "ReplaceProof Student Simulator",
   description:
-    "Paste your LinkedIn and AI simulates the next 50 years of your career. Your PUL score reveals whether you'll join the elite — or fall into the permanent underclass.",
+    "Run your ReplaceProof simulation: assess AI displacement risk, explore transition decisions, and build a practical 90-day career pivot plan.",
   metadataBase: new URL(APP_URL),
   openGraph: {
-    title: "underclass — will you survive the age of AI?",
+    title: "ReplaceProof Student Simulator",
     description:
-      "AI simulates the next 50 years of your career. Find out your Permanent Underclass Likelihood score.",
+      "Assess your AI risk and map your 90-day transition plan with ReplaceProof.",
     url: APP_URL,
-    siteName: "underclass",
+    siteName: "ReplaceProof",
     images: [
       {
         url: `${APP_URL}/og-image.png`,
         width: 1200,
         height: 630,
-        alt: "underclass — will you survive the age of AI?",
+        alt: "ReplaceProof Student Simulator",
       },
     ],
     type: "website",
   },
   twitter: {
     card: "summary_large_image",
-    title: "underclass — will you survive the age of AI?",
+    title: "ReplaceProof Student Simulator",
     description:
-      "AI simulates the next 50 years of your career. Find out your Permanent Underclass Likelihood score.",
+      "Assess your AI risk and map your 90-day transition plan with ReplaceProof.",
     images: [`${APP_URL}/og-image.png`],
   },
   icons: {

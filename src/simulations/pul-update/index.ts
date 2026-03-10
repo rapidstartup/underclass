@@ -4,7 +4,7 @@ import { PULUpdate } from "./component";
 import type { Simulation } from "../types";
 
 export const simulation: Simulation = {
-  name: "PUL Score",
+  name: "ReplaceProof Risk Index",
   icon: "📊",
   category: "core",
   schema,

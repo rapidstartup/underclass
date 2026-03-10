@@ -2,10 +2,12 @@
 
 import { motion } from "framer-motion";
 import { useState, useCallback } from "react";
+import Link from "next/link";
+import { normalizeOutcome } from "@/lib/outcomes";
 
 interface Props {
   finalPul?: number;
-  outcome?: "elite" | "survived" | "underclass";
+  outcome?: "replaceProof" | "transitionInProgress" | "highRisk" | "elite" | "survived" | "underclass";
   headline?: string;
   turningPoints?: string[];
   finalYear?: string;
@@ -14,41 +16,42 @@ interface Props {
   sessionShareUrl?: string;
 }
 
-function getOutcomeConfig(outcome: string, pul: number) {
+function getOutcomeConfig(outcome: string) {
   switch (outcome) {
-    case "elite":
+    case "replaceProof":
       return {
         color: "#22c55e",
         bg: "rgba(34,197,94,0.06)",
         border: "rgba(34,197,94,0.15)",
-        badge: "ELITE",
+        badge: "REPLACE-PROOF",
         emoji: "🛡️",
-        label: "You made it.",
+        label: "You built durable career leverage.",
       };
-    case "survived":
+    case "transitionInProgress":
       return {
         color: "#eab308",
         bg: "rgba(234,179,8,0.06)",
         border: "rgba(234,179,8,0.15)",
-        badge: "SURVIVED",
+        badge: "TRANSITION IN PROGRESS",
         emoji: "⚡",
-        label: "Barely.",
+        label: "You're moving, but still exposed.",
       };
+    case "highRisk":
     default:
       return {
         color: "#ef4444",
         bg: "rgba(239,68,68,0.06)",
         border: "rgba(239,68,68,0.15)",
-        badge: "UNDERCLASS",
+        badge: "HIGH RISK",
         emoji: "💀",
-        label: "You didn't make it.",
+        label: "Your current path remains replaceable.",
       };
   }
 }
 
 export function GameOver({
   finalPul = 50,
-  outcome = "survived",
+  outcome = "transitionInProgress",
   headline = "",
   turningPoints = [],
   finalYear = "2050",
@@ -57,22 +60,23 @@ export function GameOver({
   sessionShareUrl,
 }: Props) {
   const pul = Math.max(0, Math.min(100, finalPul));
-  const config = getOutcomeConfig(outcome, pul);
+  const normalizedOutcome = normalizeOutcome(outcome);
+  const config = getOutcomeConfig(normalizedOutcome);
   const [sharing, setSharing] = useState(false);
   const [copied, setCopied] = useState(false);
 
   const ogImageUrl = typeof window !== "undefined"
-    ? `${window.location.origin}/api/og?name=${encodeURIComponent(personName)}&pul=${pul}&outcome=${outcome}`
+    ? `${window.location.origin}/api/og?name=${encodeURIComponent(personName)}&pul=${pul}&outcome=${normalizedOutcome}`
     : "";
 
   // The session share URL has proper OG tags, so X will render the image card
   const linkToShare = sessionShareUrl || (typeof window !== "undefined" ? window.location.origin : "");
 
-  const shareText = outcome === "elite"
-    ? `I survived the AI era. Final PUL: ${pul}%. ${headline} 🛡️\n\nWill you survive? →`
-    : outcome === "survived"
-      ? `I barely survived the AI era. PUL: ${pul}%. ${headline} ⚡\n\nFind out your score →`
-      : `I didn't make it. PUL: ${pul}%. ${headline} 💀\n\nAre you next? →`;
+  const shareText = normalizedOutcome === "replaceProof"
+    ? `I mapped my ReplaceProof path. Final risk: ${pul}%. ${headline} 🛡️\n\nSee your score ->`
+    : normalizedOutcome === "transitionInProgress"
+      ? `My ReplaceProof transition is underway. Risk: ${pul}%. ${headline} ⚡\n\nSee your score ->`
+      : `My career is still high risk in the AI shift. Risk: ${pul}%. ${headline} 💀\n\nSee where you stand ->`;
 
   const handleShareX = useCallback(async () => {
     setSharing(true);
@@ -82,7 +86,7 @@ export function GameOver({
         try {
           const imgRes = await fetch(ogImageUrl);
           const blob = await imgRes.blob();
-          const file = new File([blob], "underclass-result.png", { type: "image/png" });
+          const file = new File([blob], "replaceproof-result.png", { type: "image/png" });
           await navigator.share({
             text: shareText,
             url: linkToShare,
@@ -176,7 +180,7 @@ export function GameOver({
             </span>
             <span className="text-2xl text-white/30 ml-1">%</span>
             <p className="text-white/30 text-xs uppercase tracking-wider mt-1">
-              Permanent Underclass Likelihood
+              ReplaceProof Risk Index
             </p>
           </motion.div>
 
@@ -218,8 +222,8 @@ export function GameOver({
               </motion.div>
             </div>
             <div className="flex justify-between mt-1 px-0.5">
-              <span className="text-[9px] text-green-400/30">0% ELITE</span>
-              <span className="text-[9px] text-red-400/30">100% UNDERCLASS</span>
+              <span className="text-[9px] text-green-400/30">0% REPLACE-PROOF</span>
+              <span className="text-[9px] text-red-400/30">100% HIGH RISK</span>
             </div>
           </div>
 
@@ -320,12 +324,12 @@ export function GameOver({
             animate={{ opacity: 1 }}
             transition={{ delay: 3.3 }}
           >
-            <a
+            <Link
               href="/"
               className="text-xs text-white/20 hover:text-white/40 transition-colors underline"
             >
               Try another person →
-            </a>
+            </Link>
           </motion.div>
         </div>
       </div>

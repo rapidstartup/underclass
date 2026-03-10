@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 
-// Catch-all for usernames: underclass.sh/shaiunterslak
+// Catch-all for usernames: replaceproof.com/shaiunterslak
 // Works like X.com — any handle at root level starts a simulation
 // The research API will search Exa for this person (not assume LinkedIn)
 export default async function HandleRedirect({

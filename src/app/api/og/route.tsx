@@ -1,4 +1,5 @@
 import { ImageResponse } from "next/og";
+import { normalizeOutcome } from "@/lib/outcomes";
 
 export const runtime = "edge";
 
@@ -7,16 +8,17 @@ export async function GET(req: Request) {
   const name = searchParams.get("name") || "";
   const pul = searchParams.get("pul") || "47";
   const outcome = searchParams.get("outcome") || "";
+  const normalizedOutcome = normalizeOutcome(outcome);
 
   const pulNum = Number(pul);
 
   // Result card (when outcome is provided)
   if (outcome) {
-    const config = outcome === "elite"
-      ? { color: "#22c55e", emoji: "🛡️", badge: "ELITE", label: "Made it." }
-      : outcome === "survived"
-        ? { color: "#eab308", emoji: "⚡", badge: "SURVIVED", label: "Barely." }
-        : { color: "#ef4444", emoji: "💀", badge: "UNDERCLASS", label: "Didn't make it." };
+    const config = normalizedOutcome === "replaceProof"
+      ? { color: "#22c55e", emoji: "🛡️", badge: "REPLACE-PROOF", label: "Durable trajectory." }
+      : normalizedOutcome === "transitionInProgress"
+        ? { color: "#eab308", emoji: "⚡", badge: "IN TRANSITION", label: "Progress with exposure." }
+        : { color: "#ef4444", emoji: "💀", badge: "HIGH RISK", label: "Immediate pivot needed." };
 
     return new ImageResponse(
       (
@@ -65,7 +67,7 @@ export async function GET(req: Request) {
           </div>
 
           <div style={{ fontSize: 12, color: "rgba(255,255,255,0.25)", letterSpacing: "0.15em", textTransform: "uppercase" as const, marginBottom: 24 }}>
-            Permanent Underclass Likelihood
+            ReplaceProof Risk Index
           </div>
 
           {/* Label */}
@@ -76,7 +78,7 @@ export async function GET(req: Request) {
           {/* Name */}
           {name && (
             <div style={{ fontSize: 18, color: "rgba(255,255,255,0.3)", marginBottom: 32 }}>
-              {name}&apos;s AI future simulation
+              {name}&apos;s ReplaceProof simulation
             </div>
           )}
 
@@ -87,7 +89,7 @@ export async function GET(req: Request) {
 
           {/* CTA */}
           <div style={{ fontSize: 16, color: "rgba(255,255,255,0.2)" }}>
-            underclass.sh — will you survive?
+            replaceproof.com - take your assessment
           </div>
         </div>
       ),
@@ -97,7 +99,7 @@ export async function GET(req: Request) {
 
   // Default card (landing page style)
   const pulColor = pulNum <= 30 ? "#22c55e" : pulNum <= 55 ? "#eab308" : pulNum <= 75 ? "#f97316" : "#ef4444";
-  const pulLabel = pulNum <= 20 ? "ELITE TRACK" : pulNum <= 40 ? "ADAPTING" : pulNum <= 55 ? "AT RISK" : pulNum <= 75 ? "DANGER ZONE" : "PERMANENT UNDERCLASS";
+  const pulLabel = pulNum <= 20 ? "REPLACE-PROOF" : pulNum <= 40 ? "LOW RISK" : pulNum <= 55 ? "TRANSITIONING" : pulNum <= 75 ? "HIGH RISK" : "CRITICAL EXPOSURE";
 
   return new ImageResponse(
     (
@@ -114,18 +116,18 @@ export async function GET(req: Request) {
         }}
       >
         <div style={{ fontSize: 88, fontWeight: 800, color: "white", letterSpacing: "-0.03em", lineHeight: 1 }}>
-          underclass
+          ReplaceProof
         </div>
         <div style={{ fontSize: 24, color: "rgba(255,255,255,0.4)", marginTop: 16, marginBottom: 48 }}>
-          {name ? `will ${name} survive the AI era?` : "will you survive the age of AI?"}
+          {name ? `${name}'s ReplaceProof assessment preview` : "assess your AI risk and plan your pivot"}
         </div>
 
-        {/* PUL card */}
+        {/* Risk index card */}
         <div style={{ display: "flex", flexDirection: "column", width: 560, padding: "20px 28px", borderRadius: 16, background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
             <div style={{ display: "flex", flexDirection: "column" }}>
               <span style={{ fontSize: 13, fontWeight: 700, color: pulColor, letterSpacing: "0.1em", textTransform: "uppercase" as const }}>{pulLabel}</span>
-              <span style={{ fontSize: 10, color: "rgba(255,255,255,0.25)", letterSpacing: "0.12em", textTransform: "uppercase" as const, marginTop: 2 }}>Permanent Underclass Likelihood</span>
+              <span style={{ fontSize: 10, color: "rgba(255,255,255,0.25)", letterSpacing: "0.12em", textTransform: "uppercase" as const, marginTop: 2 }}>ReplaceProof Risk Index</span>
             </div>
             <div style={{ display: "flex", alignItems: "baseline" }}>
               <span style={{ fontSize: 42, fontWeight: 900, fontFamily: "monospace", color: pulColor, lineHeight: 1 }}>{pul}</span>
@@ -136,14 +138,14 @@ export async function GET(req: Request) {
             <div style={{ width: `${pul}%`, height: 10, borderRadius: 5, background: pulColor }} />
           </div>
           <div style={{ display: "flex", justifyContent: "space-between", marginTop: 6 }}>
-            <span style={{ fontSize: 9, color: "rgba(34,197,94,0.4)" }}>ELITE</span>
-            <span style={{ fontSize: 9, color: "rgba(234,179,8,0.4)" }}>AT RISK</span>
-            <span style={{ fontSize: 9, color: "rgba(239,68,68,0.4)" }}>UNDERCLASS</span>
+            <span style={{ fontSize: 9, color: "rgba(34,197,94,0.4)" }}>REPLACE-PROOF</span>
+            <span style={{ fontSize: 9, color: "rgba(234,179,8,0.4)" }}>TRANSITIONING</span>
+            <span style={{ fontSize: 9, color: "rgba(239,68,68,0.4)" }}>HIGH RISK</span>
           </div>
         </div>
 
         <div style={{ position: "absolute", bottom: 36, fontSize: 16, color: "rgba(255,255,255,0.2)" }}>
-          Paste your LinkedIn → find out your score
+          Take the ReplaceProof assessment -&gt; get your roadmap
         </div>
       </div>
     ),

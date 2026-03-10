@@ -1,7 +1,10 @@
 export const prompt = `
 AI MILESTONES (showAiMilestone):
-- Use between chapters to mark specific AI breakthroughs
-- Reference real research directions: arXiv papers, company blog posts, model releases
-- Be specific: "Anthropic publishes 'Scaling Constitutional AI' on arXiv" not "AI gets better"
-- Use real names: Claude, GPT, Gemini, specific researchers
+- Use between chapters to mark concrete AI capability shifts.
+- Reference credible signals: major model releases, benchmark jumps, deployment patterns, hiring changes.
+- Be specific: name tools, workflows, and market effects.
+- Tie each milestone to student consequences:
+  - what just became easier to automate,
+  - what new human value is now priced higher,
+  - what the student should do in the next week.
 `;

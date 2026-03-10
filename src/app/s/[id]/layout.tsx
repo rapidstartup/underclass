@@ -7,25 +7,25 @@ interface Props {
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { id } = await params;
-  const APP_URL = "https://underclass.sh";
+  const APP_URL = "https://replaceproof.com";
 
   try {
     const session = await getSession(id);
     if (!session) {
-      return { title: "Session not found — underclass" };
+      return { title: "Session not found — ReplaceProof" };
     }
 
     const name = session.personName || "Someone";
     const pul = session.finalPul ?? 50;
-    const outcome = pul <= 20 ? "elite" : pul <= 60 ? "survived" : "underclass";
-    const outcomeText = outcome === "elite"
-      ? `made it to the elite (PUL: ${pul}%)`
-      : outcome === "survived"
-        ? `barely survived (PUL: ${pul}%)`
-        : `fell into the underclass (PUL: ${pul}%)`;
+    const outcome = pul <= 20 ? "replaceProof" : pul <= 60 ? "transitionInProgress" : "highRisk";
+    const outcomeText = outcome === "replaceProof"
+      ? `mapped a replace-proof trajectory (risk: ${pul}%)`
+      : outcome === "transitionInProgress"
+        ? `is in transition with moderate risk (${pul}%)`
+        : `remains high risk in the AI shift (${pul}%)`;
 
-    const title = `${name} ${outcomeText} — underclass`;
-    const description = `${name}'s AI future simulation. Final score: ${pul}% Permanent Underclass Likelihood. Will you survive?`;
+    const title = `${name} ${outcomeText} — ReplaceProof`;
+    const description = `${name}'s ReplaceProof simulation. Final score: ${pul}% ReplaceProof Risk Index.`;
     const ogImage = `${APP_URL}/api/og?name=${encodeURIComponent(name)}&pul=${pul}&outcome=${outcome}`;
 
     return {
@@ -35,7 +35,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
         title,
         description,
         url: `${APP_URL}/s/${id}`,
-        siteName: "underclass",
+        siteName: "ReplaceProof",
         images: [{ url: ogImage, width: 1200, height: 630 }],
         type: "website",
       },
@@ -48,7 +48,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     };
   } catch {
     return {
-      title: "underclass — will you survive the age of AI?",
+      title: "ReplaceProof Student Simulator",
     };
   }
 }

@@ -6,6 +6,10 @@ interface Props {
   score?: number;
   delta?: number;
   reason?: string;
+  dimension?: "roleRisk" | "transferability" | "readiness" | "urgency";
+  checkpointType?: "chapterBeat" | "assessmentCheckpoint" | "pathSignal";
+  pathSignal?: string;
+  nextWeekAction?: string;
 }
 
 function getScoreColor(score: number): string {
@@ -17,29 +21,54 @@ function getScoreColor(score: number): string {
 }
 
 function getScoreLabel(score: number): string {
-  if (score <= 15) return "ELITE TRACK";
-  if (score <= 30) return "ADAPTING WELL";
-  if (score <= 50) return "AT RISK";
-  if (score <= 70) return "DANGER ZONE";
-  if (score <= 85) return "CRITICAL";
-  return "PERMANENT UNDERCLASS";
+  if (score <= 15) return "REPLACE-PROOF";
+  if (score <= 30) return "LOW RISK";
+  if (score <= 50) return "TRANSITION IN PROGRESS";
+  if (score <= 70) return "HIGH RISK";
+  if (score <= 85) return "CRITICAL EXPOSURE";
+  return "IMMEDIATE PIVOT NEEDED";
 }
 
 function getScoreEmoji(score: number): string {
   if (score <= 20) return "🛡️";
-  if (score <= 40) return "📈";
+  if (score <= 40) return "✅";
   if (score <= 55) return "⚠️";
   if (score <= 75) return "🔥";
   return "💀";
 }
 
-export function PULUpdate({ score = 50, delta = 0, reason = "" }: Props) {
+function getDimensionLabel(dimension?: Props["dimension"]): string {
+  if (!dimension) return "";
+  switch (dimension) {
+    case "roleRisk":
+      return "Role Risk";
+    case "transferability":
+      return "Transferability";
+    case "readiness":
+      return "Readiness";
+    case "urgency":
+      return "Urgency";
+    default:
+      return "";
+  }
+}
+
+export function PULUpdate({
+  score = 50,
+  delta = 0,
+  reason = "",
+  dimension,
+  checkpointType = "chapterBeat",
+  pathSignal = "",
+  nextWeekAction = "",
+}: Props) {
   const safeScore = Math.max(0, Math.min(100, score || 50));
   const safeDelta = delta || 0;
   const color = getScoreColor(safeScore);
   const label = getScoreLabel(safeScore);
   const emoji = getScoreEmoji(safeScore);
   const isImproved = safeDelta < 0;
+  const dimensionLabel = getDimensionLabel(dimension);
 
   return (
     <motion.div
@@ -72,7 +101,7 @@ export function PULUpdate({ score = 50, delta = 0, reason = "" }: Props) {
                   {label}
                 </span>
                 <span className="text-[10px] text-white/25 uppercase tracking-wider">
-                  Permanent Underclass Likelihood
+                  ReplaceProof Risk Index
                 </span>
               </div>
             </div>
@@ -133,10 +162,30 @@ export function PULUpdate({ score = 50, delta = 0, reason = "" }: Props) {
 
           {/* Scale markers */}
           <div className="flex justify-between mt-1.5 px-0.5">
-            <span className="text-[9px] text-green-400/30">ELITE</span>
-            <span className="text-[9px] text-yellow-400/30">AT RISK</span>
-            <span className="text-[9px] text-red-400/30">UNDERCLASS</span>
+            <span className="text-[9px] text-green-400/30">REPLACE-PROOF</span>
+            <span className="text-[9px] text-yellow-400/30">TRANSITION</span>
+            <span className="text-[9px] text-red-400/30">HIGH RISK</span>
           </div>
+
+          {(checkpointType !== "chapterBeat" || dimensionLabel || pathSignal) && (
+            <div className="flex flex-wrap gap-2 mt-3">
+              {checkpointType !== "chapterBeat" && (
+                <span className="text-[10px] px-2 py-1 rounded-full border border-cyan-400/20 bg-cyan-400/10 text-cyan-300/80 uppercase tracking-wider">
+                  {checkpointType === "assessmentCheckpoint" ? "Assessment checkpoint" : "Path signal"}
+                </span>
+              )}
+              {dimensionLabel && (
+                <span className="text-[10px] px-2 py-1 rounded-full border border-white/10 bg-white/5 text-white/65 uppercase tracking-wider">
+                  {dimensionLabel}
+                </span>
+              )}
+              {pathSignal && (
+                <span className="text-[10px] px-2 py-1 rounded-full border border-emerald-400/20 bg-emerald-400/10 text-emerald-300/80">
+                  Path: {pathSignal}
+                </span>
+              )}
+            </div>
+          )}
 
           {/* Reason */}
           {reason && (
@@ -148,6 +197,18 @@ export function PULUpdate({ score = 50, delta = 0, reason = "" }: Props) {
             >
               {reason}
             </motion.p>
+          )}
+
+          {nextWeekAction && (
+            <motion.div
+              className="mt-2.5 border-t border-white/5 pt-2.5"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.6 }}
+            >
+              <p className="text-[10px] uppercase tracking-wider text-white/35 mb-1">Next 7 days</p>
+              <p className="text-[12px] text-white/55 leading-snug">{nextWeekAction}</p>
+            </motion.div>
           )}
         </div>
       </div>
